@@ -22,19 +22,33 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   }
 
   const supabase = createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: signInData, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   });
 
   if (error) {
     if (error.message.includes("Invalid login credentials")) {
-      return { error: "Invalid email or password. Please try again." };
+      return { error: "Invalid email or password. Please check your credentials and try again." };
     }
     if (error.message.includes("Email not confirmed")) {
-      return { error: "Please verify your email address before signing in." };
+      return { error: "Please verify your email address before signing in. (Or disable 'Confirm email' in Supabase Auth Settings to allow instant access)." };
     }
-    return { error: "Unable to sign in. Please try again." };
+    return { error: error.message || "Unable to sign in. Please try again." };
+  }
+
+  if (signInData?.user) {
+    // Check if user already has an active clinic workspace
+    const { data: membership } = await supabase
+      .from("clinic_memberships")
+      .select("id")
+      .eq("user_id", signInData.user.id)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (!membership) {
+      redirect("/onboarding");
+    }
   }
 
   redirect("/dashboard");
@@ -54,27 +68,43 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
   }
 
   const supabase = createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data: signUpData, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
       data: {
         display_name: parsed.data.name,
       },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/callback`,
     },
   });
 
   if (error) {
-    if (error.message.includes("already registered")) {
-      return { error: "An account with this email already exists." };
+    if (error.message.includes("already registered") || error.message.includes("already exists")) {
+      return { error: "An account with this email already exists. Please sign in instead." };
     }
-    return { error: "Unable to create account. Please try again." };
+    return { error: error.message || "Unable to create account. Please try again." };
+  }
+
+  // If email verification is disabled in Supabase, session is returned immediately
+  if (signUpData?.session) {
+    // Ensure profile is initialized
+    if (signUpData.user) {
+      await supabase.from("profiles").upsert(
+        {
+          user_id: signUpData.user.id,
+          display_name: parsed.data.name,
+          timezone: "Asia/Kolkata",
+        },
+        { onConflict: "user_id" }
+      );
+    }
+    redirect("/onboarding");
   }
 
   return {
     success:
-      "Account created! Please check your email to verify your address.",
+      "Account registered! If email confirmation is enabled in your Supabase project, check your inbox. If email confirmation is disabled, you can sign in directly now.",
   };
 }
 
@@ -158,6 +188,16 @@ export async function createClinicAction(formData: FormData): Promise<AuthAction
   if (existingMembership) {
     redirect("/dashboard");
   }
+
+  // Ensure user profile exists
+  await supabase.from("profiles").upsert(
+    {
+      user_id: user.id,
+      display_name: (user.user_metadata?.display_name as string) || user.email?.split("@")[0] || "Clinic Owner",
+      timezone: (formData.get("timezone") as string) || "Asia/Kolkata",
+    },
+    { onConflict: "user_id" }
+  );
 
   // Create clinic
   const { data: clinic, error: clinicError } = await supabase

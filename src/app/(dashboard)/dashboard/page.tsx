@@ -71,7 +71,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <Link href="/follow-ups">
-            <Button size="sm" variant="outline" className="bg-white whitespace-nowrap text-xs">
+            <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold whitespace-nowrap text-xs shadow-sm">
               Open Queue
               <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
             </Button>

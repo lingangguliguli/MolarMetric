@@ -16,6 +16,8 @@ import {
   Zap,
 } from "lucide-react";
 
+import { BrandLogo } from "@/components/ui/brand-logo";
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#070A11] text-stone-100 selection:bg-amber-500/20 selection:text-amber-300">
@@ -25,19 +27,7 @@ export default function LandingPage() {
       {/* Navigation */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#070A11]/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform">
-              <span className="text-stone-950 font-black text-sm tracking-tighter">M</span>
-            </div>
-            <div>
-              <span className="font-extrabold text-lg text-white tracking-tight block leading-none">
-                MolarMetric
-              </span>
-              <span className="text-[10px] font-mono tracking-widest text-amber-400/90 uppercase block mt-0.5">
-                Dental Revenue OS
-              </span>
-            </div>
-          </Link>
+          <BrandLogo size="md" />
 
           <nav className="hidden md:flex items-center gap-8 text-xs font-medium text-stone-300">
             <a href="#roi-calculator" className="hover:text-amber-400 transition-colors">
@@ -332,7 +322,7 @@ export default function LandingPage() {
             </div>
             <div className="mt-8">
               <Link href="/register">
-                <Button variant="outline" className="w-full text-xs font-bold border-stone-700 hover:bg-stone-800">
+                <Button variant="outline" className="w-full text-xs font-bold border-stone-700 text-stone-200 hover:text-white hover:bg-stone-800">
                   Select Boutique
                 </Button>
               </Link>
@@ -417,7 +407,7 @@ export default function LandingPage() {
             </div>
             <div className="mt-8">
               <Link href="/register">
-                <Button variant="outline" className="w-full text-xs font-bold border-stone-700 hover:bg-stone-800">
+                <Button variant="outline" className="w-full text-xs font-bold border-stone-700 text-stone-200 hover:text-white hover:bg-stone-800">
                   Contact Dental Group
                 </Button>
               </Link>
@@ -426,10 +416,10 @@ export default function LandingPage() {
         </div>
 
         {/* Cashfree Badge Strip */}
-        <div className="mt-12 text-center text-xs text-stone-500 flex items-center justify-center gap-2">
+        <div className="mt-12 text-center text-xs text-stone-400 flex items-center justify-center gap-2">
           <Shield className="w-4 h-4 text-emerald-400" />
           <span>
-            Secure Indian Payments Powered by <strong>Cashfree Payments</strong> — Supports UPI, RuPay, NetBanking & Corporate Cards.
+            Secure Indian Payments Powered by <strong className="text-stone-200">Cashfree Payments</strong> — Supports UPI, RuPay, NetBanking & Corporate Cards.
           </span>
         </div>
       </section>
@@ -438,14 +428,12 @@ export default function LandingPage() {
       <footer className="border-t border-stone-900 py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center">
-              <span className="text-stone-950 font-bold text-xs">M</span>
-            </div>
+            <BrandLogo size="sm" showText={false} />
             <span className="text-sm font-semibold text-white">MolarMetric OS</span>
-            <span className="text-xs text-stone-500">— Dental Revenue Recovery Platform</span>
+            <span className="text-xs text-stone-400">— Dental Revenue Recovery Platform</span>
           </div>
 
-          <p className="text-xs text-stone-500">
+          <p className="text-xs text-stone-400">
             © {new Date().getFullYear()} MolarMetric. Engineered for India&apos;s leading dental practices.
           </p>
         </div>

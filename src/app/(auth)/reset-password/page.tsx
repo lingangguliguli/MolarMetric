@@ -6,7 +6,9 @@ import { resetPasswordAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Eye, EyeOff, Loader2, Lock } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckCircle2, Eye, EyeOff, Loader2, Lock, AlertCircle } from "lucide-react";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
@@ -46,91 +48,105 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="w-full">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Set new password
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Choose a secure password for your MolarMetric account.
-        </p>
+    <div className="animate-fade-in">
+      <div className="mb-8 lg:hidden flex items-center justify-center">
+        <BrandLogo size="md" />
       </div>
 
-      {success ? (
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-6 text-emerald-900 dark:text-emerald-200">
-          <div className="flex items-start gap-3">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <h3 className="font-semibold text-sm">Password updated successfully</h3>
-              <p className="mt-1 text-sm opacity-90">
-                Your password has been changed. You can now access your account.
-              </p>
-              <div className="mt-4">
-                <Link href="/dashboard">
-                  <Button size="sm">Go to dashboard</Button>
-                </Link>
+      <Card className="border border-stone-800 bg-stone-900/90 backdrop-blur-xl text-white shadow-2xl rounded-2xl">
+        <CardHeader className="space-y-1.5 p-6 sm:p-8">
+          <CardTitle className="text-2xl font-serif text-white tracking-tight">Set new password</CardTitle>
+          <CardDescription className="text-stone-300 text-sm">
+            Choose a secure password for your MolarMetric clinic account.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-6 pb-8 sm:px-8">
+          {success ? (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-emerald-200 space-y-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-sm text-white">Password updated successfully</h3>
+                  <p className="text-xs text-stone-300 leading-relaxed">
+                    Your password has been changed. You can now access your clinic workspace.
+                  </p>
+                </div>
               </div>
+              <Link href="/dashboard" className="block pt-2">
+                <Button className="w-full h-11 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-stone-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-amber-500/20">
+                  Go to Dashboard
+                </Button>
+              </Link>
             </div>
-          </div>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-              {error}
-            </div>
-          )}
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="flex items-center gap-2 p-3.5 mb-2 rounded-xl bg-destructive/15 border border-destructive/30 text-rose-300 text-xs font-medium" role="alert">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0 text-rose-400" />
+                  <span>{error}</span>
+                </div>
+              )}
 
-          <div className="space-y-2">
-            <Label htmlFor="password">New password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="At least 8 characters"
-                required
-                className="pl-9 pr-9"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label={showPassword ? "Hide password" : "Show password"}
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-stone-200 text-xs font-semibold uppercase tracking-wider">
+                  New Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-500" />
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="At least 8 characters"
+                    required
+                    className="pl-10 pr-10 bg-stone-950 border-stone-800 text-white placeholder:text-stone-600 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 h-11 rounded-xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-stone-200 text-xs font-semibold uppercase tracking-wider">
+                  Confirm New Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-500" />
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Re-enter your password"
+                    required
+                    className="pl-10 pr-10 bg-stone-950 border-stone-800 text-white placeholder:text-stone-600 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 h-11 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-11 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-stone-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-amber-500/20 mt-2"
+                disabled={loading}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm new password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showPassword ? "text" : "password"}
-                placeholder="Re-enter your password"
-                required
-                className="pl-9 pr-9"
-              />
-            </div>
-          </div>
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Updating password...
-              </>
-            ) : (
-              "Update password"
-            )}
-          </Button>
-        </form>
-      )}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating password...
+                  </>
+                ) : (
+                  "Update Password"
+                )}
+              </Button>
+            </form>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

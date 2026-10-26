@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkles, ShieldCheck } from "lucide-react";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 export default function AuthLayout({
   children,
@@ -7,27 +8,15 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-[#070A11]">
       {/* Left panel — luxury clinical branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-[#080C14] relative overflow-hidden text-white flex-col justify-between p-12">
+      <div className="hidden lg:flex lg:w-1/2 bg-[#080C14] relative overflow-hidden text-white flex-col justify-between p-12 border-r border-stone-800/80">
         {/* Subtle amber ambient glow */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10">
-          <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <span className="text-stone-950 font-black text-sm">M</span>
-            </div>
-            <div>
-              <span className="font-extrabold text-lg text-white tracking-tight block leading-tight">
-                MolarMetric
-              </span>
-              <span className="text-[10px] font-mono tracking-widest text-amber-400/90 uppercase block">
-                Dental Revenue OS
-              </span>
-            </div>
-          </Link>
+          <BrandLogo size="md" />
         </div>
 
         <div className="relative z-10 max-w-md space-y-6 my-auto">

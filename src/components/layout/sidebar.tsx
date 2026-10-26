@@ -15,6 +15,7 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -40,18 +41,8 @@ export function Sidebar({ className }: { className?: string }) {
     >
       <div>
         {/* Brand Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-white/[0.06] gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-md shadow-amber-500/20">
-            <span className="text-stone-950 font-black text-xs">M</span>
-          </div>
-          <div>
-            <span className="font-bold text-sm text-white tracking-tight block leading-tight">
-              MolarMetric
-            </span>
-            <span className="text-[9px] uppercase font-mono tracking-wider text-amber-400/90 block">
-              Revenue OS
-            </span>
-          </div>
+        <div className="h-16 flex items-center px-5 border-b border-white/[0.06]">
+          <BrandLogo size="sm" href="/dashboard" />
         </div>
 
         {/* Navigation Links */}

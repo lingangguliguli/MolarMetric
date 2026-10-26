@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, Loader2, LogIn } from "lucide-react";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
@@ -30,47 +31,49 @@ export default function LoginPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-8 lg:hidden flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-          <span className="text-primary-foreground font-bold text-sm">M</span>
-        </div>
-        <span className="font-semibold text-lg">Molarmetric</span>
+      <div className="mb-8 lg:hidden flex items-center justify-center">
+        <BrandLogo size="md" />
       </div>
 
-      <Card className="border-0 shadow-none lg:border lg:shadow-sm">
-        <CardHeader className="space-y-1 px-0 lg:px-6">
-          <CardTitle className="text-2xl font-semibold">Welcome back</CardTitle>
-          <CardDescription>
-            Sign in to your account to continue
+      <Card className="border border-stone-800 bg-stone-900/90 backdrop-blur-xl text-white shadow-2xl rounded-2xl">
+        <CardHeader className="space-y-1.5 p-6 sm:p-8">
+          <CardTitle className="text-2xl font-serif text-white tracking-tight">Welcome back</CardTitle>
+          <CardDescription className="text-stone-300 text-sm">
+            Sign in to your MolarMetric clinic workspace
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-0 lg:px-6">
+        <CardContent className="px-6 pb-8 sm:px-8">
           {error && (
-            <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-destructive/10 text-destructive text-sm" role="alert">
-              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <div className="flex items-center gap-2 p-3.5 mb-5 rounded-xl bg-destructive/15 border border-destructive/30 text-rose-300 text-xs font-medium" role="alert">
+              <AlertCircle className="h-4 w-4 flex-shrink-0 text-rose-400" />
               <span>{error}</span>
             </div>
           )}
 
           <form action={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-stone-200 text-xs font-semibold uppercase tracking-wider">
+                Official Email
+              </Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="doctor@clinic.com"
                 required
                 autoComplete="email"
                 autoFocus
+                className="bg-stone-950 border-stone-800 text-white placeholder:text-stone-600 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 h-11 rounded-xl"
               />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-stone-200 text-xs font-semibold uppercase tracking-wider">
+                  Password
+                </Label>
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-xs text-amber-400 hover:text-amber-300 transition-colors font-medium"
                 >
                   Forgot password?
                 </Link>
@@ -82,25 +85,30 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 required
                 autoComplete="current-password"
+                className="bg-stone-950 border-stone-800 text-white placeholder:text-stone-600 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 h-11 rounded-xl"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full h-11 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-stone-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-amber-500/20 mt-2"
+              disabled={loading}
+            >
               {loading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <LogIn className="mr-2 h-4 w-4" />
               )}
-              Sign in
+              Sign In to Practice
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
+          <p className="mt-6 text-center text-xs text-stone-400">
             Don&apos;t have an account?{" "}
             <Link
               href="/register"
-              className="font-medium text-foreground hover:text-primary transition-colors"
+              className="font-bold text-amber-400 hover:text-amber-300 transition-colors ml-1"
             >
-              Create one
+              Start 14-day trial
             </Link>
           </p>
         </CardContent>
