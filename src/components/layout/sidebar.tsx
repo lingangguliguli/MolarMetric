@@ -29,8 +29,17 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Clinic Settings", icon: Settings },
 ];
 
-export function Sidebar({ className }: { className?: string }) {
+import type { Clinic } from "@/lib/types";
+import { getSubscriptionInfo } from "@/lib/subscription";
+
+interface SidebarProps {
+  clinic?: Clinic;
+  className?: string;
+}
+
+export function Sidebar({ clinic, className }: SidebarProps) {
   const pathname = usePathname();
+  const sub = clinic ? getSubscriptionInfo(clinic) : null;
 
   return (
     <aside
@@ -80,15 +89,47 @@ export function Sidebar({ className }: { className?: string }) {
         </nav>
       </div>
 
-      {/* Footer Pill */}
-      <div className="p-4 border-t border-white/[0.06]">
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-center gap-2.5">
-          <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />
-          <div className="text-[11px] leading-tight">
-            <span className="font-semibold text-white block">MolarMetric Enterprise</span>
-            <span className="text-stone-400 text-[10px]">India Practice Edition</span>
+      {/* Subscription / 14-Day Trial Card */}
+      <div className="p-3 border-t border-white/[0.06]">
+        {sub?.isTrial ? (
+          <div className="rounded-xl border border-amber-500/25 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-3 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-white flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                14-Day Pro Trial
+              </span>
+              <span className="text-[11px] font-bold text-amber-300">
+                {sub.remainingDays > 0 ? `${sub.remainingDays}d left` : "Expired"}
+              </span>
+            </div>
+
+            {/* Trial Progress Bar */}
+            <div className="w-full bg-white/[0.08] h-1.5 rounded-full overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-amber-500 to-amber-300 h-full rounded-full transition-all duration-500"
+                style={{ width: `${sub.trialPercentRemaining}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] text-stone-400 pt-0.5">
+              <span>Expires {sub.formattedExpiresAt}</span>
+              <Link
+                href="/settings"
+                className="text-amber-400 hover:text-amber-300 font-semibold underline underline-offset-2"
+              >
+                Upgrade
+              </Link>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-center gap-2.5">
+            <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <div className="text-[11px] leading-tight">
+              <span className="font-semibold text-white block">MolarMetric Enterprise</span>
+              <span className="text-stone-400 text-[10px]">India Practice Edition</span>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );

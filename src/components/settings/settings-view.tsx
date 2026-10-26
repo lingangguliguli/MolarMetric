@@ -19,8 +19,14 @@ import {
   Shield,
   Loader2,
   CheckCircle2,
+  Sparkles,
+  CreditCard,
+  Calendar,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
 import type { Clinic, UserRole, AuditEvent } from "@/lib/types";
+import { getSubscriptionInfo } from "@/lib/subscription";
 
 interface SettingsViewProps {
   clinic: Clinic;
@@ -44,6 +50,7 @@ export function SettingsView({
   auditLogs,
 }: SettingsViewProps) {
   const router = useRouter();
+  const sub = getSubscriptionInfo(clinic);
 
   const [name, setName] = useState(clinic.name);
   const [phone, setPhone] = useState(clinic.phone || "");
@@ -100,9 +107,10 @@ export function SettingsView({
   return (
     <div className="space-y-6">
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid grid-cols-2 w-full sm:w-[350px]">
+        <TabsList className="grid grid-cols-3 w-full sm:w-[500px]">
           <TabsTrigger value="profile" className="text-xs">Clinic Profile</TabsTrigger>
-          <TabsTrigger value="audit" className="text-xs">Security & Audit Log</TabsTrigger>
+          <TabsTrigger value="subscription" className="text-xs">Subscription & Trial</TabsTrigger>
+          <TabsTrigger value="audit" className="text-xs">Audit Logs</TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Clinic Profile Settings */}
@@ -270,7 +278,147 @@ export function SettingsView({
           </Card>
         </TabsContent>
 
-        {/* Tab 2: Security & Audit Trail */}
+        {/* Tab 2: Subscription & Trial Management */}
+        <TabsContent value="subscription" className="mt-4 space-y-4">
+          <Card className="border-border/60 bg-card/60 backdrop-blur-xs">
+            <CardHeader className="pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <span>{sub.isTrial ? "14-Day Clinical Pro Trial" : "MolarMetric Pro Plan"}</span>
+                      <Badge
+                        variant="outline"
+                        className={
+                          sub.isPaid
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                            : sub.isExpired
+                            ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                            : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                        }
+                      >
+                        {sub.isPaid
+                          ? "Active Pro"
+                          : sub.isExpired
+                          ? "Trial Expired"
+                          : `${sub.remainingDays} Days Left`}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      {sub.isTrial
+                        ? `Your clinic workspace is currently enjoying all Enterprise features free for 14 days.`
+                        : `Your clinic workspace is on an active Pro subscription.`}
+                    </CardDescription>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold"
+                    onClick={() => {
+                      alert(
+                        "Cashfree Billing: You are currently on the full 14-day free trial. Cashfree checkout integration will activate your billing cycle at ₹2,999/mo after trial completion."
+                      );
+                    }}
+                  >
+                    <CreditCard className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+                    {sub.isPaid ? "Manage Subscription" : "Upgrade Plan (₹2,999/mo)"}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              {/* Trial Days Counter Card */}
+              {sub.isTrial && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4 space-y-3">
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className="text-stone-300 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-amber-400" />
+                      Free Trial Progress
+                    </span>
+                    <span className="text-amber-300 font-bold">
+                      {sub.remainingDays} of {sub.totalTrialDays} days remaining
+                    </span>
+                  </div>
+
+                  {/* Visual Progress Bar */}
+                  <div className="w-full bg-stone-800/80 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-amber-500 to-amber-300 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${sub.trialPercentRemaining}%` }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1 text-xs">
+                    <div>
+                      <span className="text-muted-foreground text-[11px] block">Trial Started</span>
+                      <span className="font-medium text-foreground">
+                        {new Date(clinic.created_at).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-[11px] block">Trial Concludes</span>
+                      <span className="font-medium text-foreground">{sub.formattedExpiresAt}</span>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <span className="text-muted-foreground text-[11px] block">Plan Post-Trial</span>
+                      <span className="font-medium text-amber-400">Pro Plan (₹2,999/mo)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Included Features */}
+              <div>
+                <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3">
+                  Active Features in Workspace
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                  {[
+                    "Unlimited Patient Leads & Follow-up Funnel",
+                    "High-Value Treatment Pipeline & Revenue Recovery",
+                    "Customized WhatsApp 1-Click Messaging Templates",
+                    "Daily Clinical Motivation & Staff Performance Hub",
+                    "Role-Based Access for Receptionists & Admins",
+                    "Tamper-Evident Audit Logs & Financial Privacy",
+                  ].map((feat, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-stone-300">
+                      <div className="w-4 h-4 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                        <Check className="w-2.5 h-2.5" />
+                      </div>
+                      <span>{feat}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Payment Gateway Information Strip */}
+              <div className="p-3.5 rounded-xl border border-stone-800 bg-stone-900/40 flex items-center justify-between text-xs text-stone-400">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-stone-300" />
+                  <span>
+                    Secured by <strong className="text-stone-200">Cashfree Payments India</strong> — Supports UPI, RuPay, NetBanking & Cards.
+                  </span>
+                </div>
+                <Badge variant="outline" className="border-stone-700 text-stone-300 text-[10px]">
+                  INR (₹) Billing
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 3: Security & Audit Trail */}
         <TabsContent value="audit" className="mt-4">
           <Card className="border-border/60">
             <CardHeader>

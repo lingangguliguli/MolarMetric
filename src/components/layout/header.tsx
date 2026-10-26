@@ -21,8 +21,10 @@ import {
   Menu,
   X,
   UserCheck,
+  Sparkles,
 } from "lucide-react";
 import type { Clinic, Profile, UserRole } from "@/lib/types";
+import { getSubscriptionInfo } from "@/lib/subscription";
 
 interface HeaderProps {
   clinic: Clinic;
@@ -32,6 +34,7 @@ interface HeaderProps {
 
 export function Header({ clinic, profile, role }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const sub = getSubscriptionInfo(clinic);
 
   const roleLabels: Record<UserRole, { label: string; color: string }> = {
     owner: { label: "Owner", color: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" },
@@ -74,6 +77,27 @@ export function Header({ clinic, profile, role }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Trial & Subscription Status Pill */}
+        {sub.isTrial ? (
+          <Link
+            href="/settings"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-medium transition-all group shadow-xs"
+            title={`Full clinical OS trial. Expires on ${sub.formattedExpiresAt}. Click to view plan options.`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse flex-shrink-0" />
+            <span className="hidden sm:inline font-semibold text-white">14-Day Free Trial</span>
+            <span className="hidden sm:inline text-amber-400/80">•</span>
+            <span className="font-bold text-amber-300">
+              {sub.remainingDays > 0 ? `${sub.remainingDays}d left` : "Expired"}
+            </span>
+          </Link>
+        ) : (
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs font-semibold">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span>Pro Workspace</span>
+          </div>
+        )}
+
         {/* Quick New Lead Button */}
         <NewLeadDialog />
 
@@ -88,16 +112,22 @@ export function Header({ clinic, profile, role }: HeaderProps) {
               </Avatar>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-60">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none text-foreground">
+                <p className="text-sm font-semibold leading-none text-foreground">
                   {profile.display_name}
                 </p>
-                <div className="pt-1 flex items-center gap-1.5">
+                <p className="text-xs text-muted-foreground truncate">
+                  {clinic.email || clinic.name}
+                </p>
+                <div className="pt-2 flex items-center justify-between">
                   <Badge variant="outline" className={`text-[10px] font-semibold uppercase ${roleLabels[role].color}`}>
                     {roleLabels[role].label}
                   </Badge>
+                  <span className={`text-[11px] font-semibold ${sub.isTrial ? "text-amber-400" : "text-emerald-400"}`}>
+                    {sub.isTrial ? `${sub.remainingDays} days trial left` : "Pro Workspace"}
+                  </span>
                 </div>
               </div>
             </DropdownMenuLabel>

@@ -85,3 +85,63 @@ describe("CSV Formula Injection Sanitization", () => {
     expect(sanitizeCsvValue("Rahul Sharma")).toBe("Rahul Sharma");
   });
 });
+
+import { getSubscriptionInfo } from "@/lib/subscription";
+import type { Clinic } from "@/lib/types";
+
+describe("Subscription & 14-Day Trial Calculations", () => {
+  const baseClinic: Clinic = {
+    id: "clinic-1",
+    name: "Apex Dental",
+    slug: "apex-dental",
+    email: "dr@apex.in",
+    phone: "+919876543210",
+    address: "MG Road",
+    city: "Bengaluru",
+    state: "Karnataka",
+    pincode: "560001",
+    timezone: "Asia/Kolkata",
+    currency: "INR",
+    lead_sources: ["phone", "whatsapp"],
+    onboarding_completed: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  it("calculates 14-day trial accurately for newly created clinic", () => {
+    const sub = getSubscriptionInfo(baseClinic);
+    expect(sub.isTrial).toBe(true);
+    expect(sub.isPaid).toBe(false);
+    expect(sub.isExpired).toBe(false);
+    expect(sub.remainingDays).toBeGreaterThanOrEqual(13);
+    expect(sub.remainingDays).toBeLessThanOrEqual(14);
+    expect(sub.totalTrialDays).toBe(14);
+  });
+
+  it("recognizes active paid subscription", () => {
+    const paidClinic: Clinic = {
+      ...baseClinic,
+      subscription_status: "active",
+      subscription_tier: "enterprise",
+    };
+    const sub = getSubscriptionInfo(paidClinic);
+    expect(sub.isTrial).toBe(false);
+    expect(sub.isPaid).toBe(true);
+    expect(sub.isExpired).toBe(false);
+    expect(sub.status).toBe("active");
+  });
+
+  it("handles expired trial correctly", () => {
+    const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
+    const expiredClinic: Clinic = {
+      ...baseClinic,
+      created_at: fifteenDaysAgo,
+      subscription_status: "trialing",
+    };
+    const sub = getSubscriptionInfo(expiredClinic);
+    expect(sub.isTrial).toBe(true);
+    expect(sub.isExpired).toBe(true);
+    expect(sub.remainingDays).toBe(0);
+    expect(sub.status).toBe("expired");
+  });
+});

@@ -38,15 +38,33 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   }
 
   if (signInData?.user) {
+    let dbClient = supabase;
+    if (
+      process.env.SUPABASE_SERVICE_ROLE_KEY &&
+      process.env.SUPABASE_SERVICE_ROLE_KEY !== "your-service-role-key-here"
+    ) {
+      try {
+        dbClient = createServiceClient();
+      } catch {
+        dbClient = supabase;
+      }
+    }
+
     // Check if user already has an active clinic workspace
-    const { data: membership } = await supabase
+    const { data: membership, error: memberError } = await dbClient
       .from("clinic_memberships")
-      .select("id")
+      .select("id, clinic_id")
       .eq("user_id", signInData.user.id)
       .eq("status", "active")
+      .limit(1)
       .maybeSingle();
 
-    if (!membership) {
+    if (memberError) {
+      console.warn("Membership check warning during login:", memberError.message);
+    }
+
+    // Only redirect to onboarding if we know for sure they have no clinic
+    if (!membership && !memberError) {
       redirect("/onboarding");
     }
   }

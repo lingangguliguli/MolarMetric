@@ -101,6 +101,9 @@ export interface Clinic {
   currency: string;
   lead_sources: LeadSource[];
   onboarding_completed: boolean;
+  subscription_tier?: string;
+  subscription_status?: "trialing" | "active" | "past_due" | "canceled" | "unpaid" | "expired";
+  trial_ends_at?: string | null;
   created_at: string;
   updated_at: string;
 }

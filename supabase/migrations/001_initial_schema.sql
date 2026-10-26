@@ -37,9 +37,17 @@ CREATE TABLE IF NOT EXISTS clinics (
   currency TEXT NOT NULL DEFAULT 'INR',
   lead_sources TEXT[] NOT NULL DEFAULT ARRAY['phone','walk_in','whatsapp'],
   onboarding_completed BOOLEAN NOT NULL DEFAULT false,
+  subscription_tier TEXT NOT NULL DEFAULT 'starter',
+  subscription_status TEXT NOT NULL DEFAULT 'trialing',
+  trial_ends_at TIMESTAMPTZ DEFAULT (now() + INTERVAL '14 days'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Ensure subscription columns exist if table was already created
+ALTER TABLE clinics ADD COLUMN IF NOT EXISTS subscription_tier TEXT NOT NULL DEFAULT 'starter';
+ALTER TABLE clinics ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT 'trialing';
+ALTER TABLE clinics ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ DEFAULT (now() + INTERVAL '14 days');
 
 -- ============================================================================
 -- CLINIC MEMBERSHIPS
