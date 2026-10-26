@@ -44,27 +44,37 @@ export function NewLeadDialog({ trigger, onSuccess }: NewLeadDialogProps) {
     setLoading(true);
     setError(null);
 
-    const result = await createLead({
-      name,
-      phone,
-      email: email || undefined,
-      source,
-      service_interest: serviceInterest || undefined,
-      consent_whatsapp: true,
-      consent_sms: false,
-      consent_email: false,
-    });
+    try {
+      const result = await createLead({
+        name,
+        phone,
+        email: email || undefined,
+        source,
+        service_interest: serviceInterest || undefined,
+        consent_whatsapp: true,
+        consent_sms: false,
+        consent_email: false,
+      });
 
-    setLoading(false);
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setOpen(false);
-      setName("");
-      setPhone("");
-      setEmail("");
-      setServiceInterest("");
-      if (onSuccess) onSuccess();
+      if (result?.error) {
+        setError(result.error);
+      } else {
+        setOpen(false);
+        setName("");
+        setPhone("");
+        setEmail("");
+        setServiceInterest("");
+        if (onSuccess) {
+          try {
+            onSuccess();
+          } catch {}
+        }
+      }
+    } catch (err: any) {
+      console.error("New lead client exception:", err);
+      setError(err?.message || "Failed to create patient enquiry. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 

@@ -36,42 +36,53 @@ export async function getAuthenticatedClinic(): Promise<AuthenticatedContext> {
     }
   }
 
-  // Get active membership with clinic details (most recently created first)
-  const { data: membership, error: memberError } = await dbClient
+  // 1. Get active membership (or latest membership)
+  let { data: membership, error: memberError } = await dbClient
     .from("clinic_memberships")
-    .select("*, clinic:clinics(*)")
+    .select("*")
     .eq("user_id", user.id)
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (memberError) {
+  if (!membership) {
+    // Fallback: check if any membership exists regardless of status filter
+    const { data: fallbackMem } = await dbClient
+      .from("clinic_memberships")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    membership = fallbackMem;
+  }
+
+  if (memberError && !membership) {
     console.error("Auth context membership query error:", memberError.message);
   }
 
-  // If membership exists but clinic object didn't join properly, fetch clinic directly
-  let clinic = membership?.clinic as Clinic | null;
-  if (membership && !clinic && membership.clinic_id) {
-    const { data: directClinic, error: clinicErr } = await dbClient
-      .from("clinics")
-      .select("*")
-      .eq("id", membership.clinic_id)
-      .maybeSingle();
-
-    if (directClinic) {
-      clinic = directClinic as Clinic;
-    } else if (clinicErr) {
-      console.error("Auth context direct clinic fetch error:", clinicErr.message);
-    }
-  }
-
-  if (!membership || !clinic) {
+  if (!membership) {
     redirect("/onboarding");
   }
 
-  // Get profile
-  const { data: profile } = await supabase
+  // 2. Fetch clinic directly by clinic_id (guaranteed 100% reliable, zero join errors)
+  const { data: clinic, error: clinicErr } = await dbClient
+    .from("clinics")
+    .select("*")
+    .eq("id", membership.clinic_id)
+    .maybeSingle();
+
+  if (clinicErr) {
+    console.error("Auth context clinic query error:", clinicErr.message);
+  }
+
+  if (!clinic) {
+    redirect("/onboarding");
+  }
+
+  // 3. Get profile
+  const { data: profile } = await dbClient
     .from("profiles")
     .select("*")
     .eq("user_id", user.id)

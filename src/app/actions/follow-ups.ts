@@ -31,7 +31,7 @@ export async function getFollowUpQueue(): Promise<TaskQueueResult> {
   // Fetch pending tasks
   const { data: pendingTasks, error: pendingErr } = await supabase
     .from("follow_up_tasks")
-    .select("*, lead:leads(*), assigned_profile:profiles!follow_up_tasks_assigned_to_fkey(*)")
+    .select("*, lead:leads(*)")
     .eq("clinic_id", clinic.id)
     .eq("status", "pending")
     .order("due_at", { ascending: true });
@@ -43,7 +43,7 @@ export async function getFollowUpQueue(): Promise<TaskQueueResult> {
   // Fetch completed today
   const { data: completedTodayTasks } = await supabase
     .from("follow_up_tasks")
-    .select("*, lead:leads(*), assigned_profile:profiles!follow_up_tasks_assigned_to_fkey(*)")
+    .select("*, lead:leads(*)")
     .eq("clinic_id", clinic.id)
     .eq("status", "completed")
     .gte("completed_at", startOfDay)

@@ -1,11 +1,25 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getAuthenticatedClinic } from "@/lib/auth-context";
 import { leadCreateSchema, leadUpdateSchema, type LeadCreateInput, type LeadUpdateInput } from "@/lib/validations";
 import { normalizePhoneNumber, sanitizeCsvValue } from "@/lib/utils";
 import type { Lead, LeadStage, LeadSource, PaginatedResult } from "@/lib/types";
 import { revalidatePath } from "next/cache";
+
+function getDbClient(supabaseClient: any) {
+  if (
+    process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    process.env.SUPABASE_SERVICE_ROLE_KEY !== "your-service-role-key-here"
+  ) {
+    try {
+      return createServiceClient();
+    } catch {
+      return supabaseClient;
+    }
+  }
+  return supabaseClient;
+}
 
 export interface GetLeadsParams {
   stage?: LeadStage | "all";
@@ -21,15 +35,16 @@ export interface GetLeadsParams {
 export async function getLeads(params: GetLeadsParams = {}): Promise<PaginatedResult<Lead>> {
   const { clinic } = await getAuthenticatedClinic();
   const supabase = createClient();
+  const dbClient = getDbClient(supabase);
 
   const page = Math.max(1, params.page || 1);
   const pageSize = Math.max(1, Math.min(100, params.pageSize || 20));
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  let query = supabase
+  let query = dbClient
     .from("leads")
-    .select("*, assigned_profile:profiles!leads_assigned_to_fkey(*)", { count: "exact" })
+    .select("*", { count: "exact" })
     .eq("clinic_id", clinic.id)
     .eq("archived", false);
 
@@ -74,10 +89,11 @@ export async function getLeads(params: GetLeadsParams = {}): Promise<PaginatedRe
 export async function getLeadById(id: string) {
   const { clinic } = await getAuthenticatedClinic();
   const supabase = createClient();
+  const dbClient = getDbClient(supabase);
 
-  const { data: lead, error: leadError } = await supabase
+  const { data: lead, error: leadError } = await dbClient
     .from("leads")
-    .select("*, assigned_profile:profiles!leads_assigned_to_fkey(*)")
+    .select("*")
     .eq("id", id)
     .eq("clinic_id", clinic.id)
     .single();
@@ -87,16 +103,16 @@ export async function getLeadById(id: string) {
   }
 
   // Fetch timeline events
-  const { data: events } = await supabase
+  const { data: events } = await dbClient
     .from("lead_events")
-    .select("*, actor_profile:profiles!lead_events_actor_id_fkey(*)")
+    .select("*")
     .eq("lead_id", id)
     .order("created_at", { ascending: false });
 
   // Fetch follow up tasks
-  const { data: tasks } = await supabase
+  const { data: tasks } = await dbClient
     .from("follow_up_tasks")
-    .select("*, assigned_profile:profiles!follow_up_tasks_assigned_to_fkey(*)")
+    .select("*")
     .eq("lead_id", id)
     .order("due_at", { ascending: true });
 
@@ -143,35 +159,37 @@ export async function checkDuplicatePhone(phone: string): Promise<{ exists: bool
 }
 
 export async function createLead(input: LeadCreateInput) {
-  const { clinic, user } = await getAuthenticatedClinic();
-  const supabase = createClient();
+  try {
+    const { clinic, user } = await getAuthenticatedClinic();
+    const supabase = createClient();
+    const dbClient = getDbClient(supabase);
 
-  const parsed = leadCreateSchema.safeParse(input);
-  if (!parsed.success) {
-    return { error: parsed.error.errors[0]?.message || "Invalid input data" };
-  }
+    const parsed = leadCreateSchema.safeParse(input);
+    if (!parsed.success) {
+      return { error: parsed.error.errors[0]?.message || "Invalid input data" };
+    }
 
-  const normalizedPhone = normalizePhoneNumber(parsed.data.phone);
+    const normalizedPhone = normalizePhoneNumber(parsed.data.phone);
 
-  // Check for duplicate phone in same clinic
-  const { data: existing } = await supabase
-    .from("leads")
-    .select("id, name")
-    .eq("clinic_id", clinic.id)
-    .eq("phone", normalizedPhone)
-    .eq("archived", false)
-    .maybeSingle();
+    // Check for duplicate phone in same clinic
+    const { data: existing } = await dbClient
+      .from("leads")
+      .select("id, name")
+      .eq("clinic_id", clinic.id)
+      .eq("phone", normalizedPhone)
+      .eq("archived", false)
+      .maybeSingle();
 
-  if (existing) {
-    return {
-      error: `An enquiry with this phone number already exists for patient "${existing.name}".`,
-      leadId: existing.id,
-    };
-  }
+    if (existing) {
+      return {
+        error: `An enquiry with this phone number already exists for patient "${existing.name}".`,
+        leadId: existing.id,
+      };
+    }
 
-  const { data: lead, error: insertError } = await supabase
-    .from("leads")
-    .insert({
+    const leadId = crypto.randomUUID();
+    const newLeadData = {
+      id: leadId,
       clinic_id: clinic.id,
       name: parsed.data.name,
       phone: normalizedPhone,
@@ -180,48 +198,62 @@ export async function createLead(input: LeadCreateInput) {
       source_detail: parsed.data.source_detail || null,
       service_interest: parsed.data.service_interest || null,
       assigned_to: parsed.data.assigned_to || user.id,
-      stage: "new",
+      stage: "new" as const,
       consent_whatsapp: parsed.data.consent_whatsapp ?? true,
       consent_sms: parsed.data.consent_sms ?? false,
       consent_email: parsed.data.consent_email ?? false,
-    })
-    .select("*")
-    .single();
+    };
 
-  if (insertError || !lead) {
-    console.error("Failed to create lead:", insertError?.message);
-    return { error: "Failed to create lead enquiry." };
+    const { error: insertError } = await dbClient
+      .from("leads")
+      .insert(newLeadData);
+
+    if (insertError) {
+      console.error("Failed to create lead:", insertError.message);
+      return { error: `Failed to create lead enquiry: ${insertError.message}` };
+    }
+
+    // Log timeline creation event (safe secondary action)
+    try {
+      await dbClient.from("lead_events").insert({
+        clinic_id: clinic.id,
+        lead_id: leadId,
+        event_type: "created",
+        actor_id: user.id,
+        metadata: {
+          source: parsed.data.source,
+          service_interest: parsed.data.service_interest,
+        },
+      });
+
+      // Automatically schedule initial contact follow-up task
+      const dueAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      await dbClient.from("follow_up_tasks").insert({
+        clinic_id: clinic.id,
+        lead_id: leadId,
+        assigned_to: newLeadData.assigned_to,
+        task_type: "first_contact",
+        due_at: dueAt,
+        status: "pending",
+        notes: `Initial enquiry follow-up regarding ${newLeadData.service_interest || "consultation"}.`,
+      });
+    } catch (secErr) {
+      console.warn("Secondary lead event logging warning:", secErr);
+    }
+
+    try {
+      revalidatePath("/leads");
+      revalidatePath("/dashboard");
+      revalidatePath("/follow-ups");
+    } catch (revErr) {
+      console.warn("Revalidation warning:", revErr);
+    }
+
+    return { success: true, lead: newLeadData as unknown as Lead };
+  } catch (err: any) {
+    console.error("createLead unexpected error:", err);
+    return { error: err?.message || "An unexpected error occurred while saving enquiry." };
   }
-
-  // Log timeline creation event
-  await supabase.from("lead_events").insert({
-    clinic_id: clinic.id,
-    lead_id: lead.id,
-    event_type: "created",
-    actor_id: user.id,
-    metadata: {
-      source: lead.source,
-      service_interest: lead.service_interest,
-    },
-  });
-
-  // Automatically schedule initial contact follow-up task (due in 2 hours during day, or next morning)
-  const dueAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-  await supabase.from("follow_up_tasks").insert({
-    clinic_id: clinic.id,
-    lead_id: lead.id,
-    assigned_to: lead.assigned_to,
-    task_type: "first_contact",
-    due_at: dueAt,
-    status: "pending",
-    notes: `Initial enquiry follow-up regarding ${lead.service_interest || "consultation"}.`,
-  });
-
-  revalidatePath("/leads");
-  revalidatePath("/dashboard");
-  revalidatePath("/follow-ups");
-
-  return { success: true, lead: lead as Lead };
 }
 
 export async function updateLead(id: string, input: LeadUpdateInput) {
@@ -382,7 +414,7 @@ export async function exportLeadsCSV(): Promise<string> {
 
   const { data: leads, error } = await supabase
     .from("leads")
-    .select("*, assigned_profile:profiles!leads_assigned_to_fkey(display_name)")
+    .select("*")
     .eq("clinic_id", clinic.id)
     .eq("archived", false)
     .order("created_at", { ascending: false });

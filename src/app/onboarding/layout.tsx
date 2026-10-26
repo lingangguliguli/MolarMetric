@@ -29,12 +29,11 @@ export default async function OnboardingLayout({
     }
   }
 
-  // Check if user already has an active clinic workspace
+  // Check if user already has any clinic workspace
   const { data: membership } = await dbClient
     .from("clinic_memberships")
     .select("id, clinic_id")
     .eq("user_id", user.id)
-    .eq("status", "active")
     .limit(1)
     .maybeSingle();
 

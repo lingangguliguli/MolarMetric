@@ -11,10 +11,10 @@ export async function getTeamMembers() {
   const { clinic } = await getAuthenticatedClinic();
   const supabase = createClient();
 
-  const [{ data: members }, { data: invitations }] = await Promise.all([
+  const [{ data: rawMembers }, { data: invitations }] = await Promise.all([
     supabase
       .from("clinic_memberships")
-      .select("*, profile:profiles!clinic_memberships_user_id_fkey(*)")
+      .select("*")
       .eq("clinic_id", clinic.id)
       .neq("status", "removed")
       .order("created_at", { ascending: true }),
@@ -25,6 +25,25 @@ export async function getTeamMembers() {
       .eq("status", "pending")
       .order("created_at", { ascending: false }),
   ]);
+
+  const userIds = (rawMembers || []).map((m) => m.user_id);
+  const { data: profiles } = userIds.length > 0
+    ? await supabase.from("profiles").select("*").in("user_id", userIds)
+    : { data: [] };
+
+  const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+  const members = (rawMembers || []).map((m: any) => ({
+    ...m,
+    profile: profileMap.get(m.user_id) || {
+      id: m.user_id,
+      user_id: m.user_id,
+      display_name: "Staff Member",
+      avatar_url: null,
+      timezone: "Asia/Kolkata",
+      created_at: m.created_at,
+      updated_at: m.updated_at,
+    },
+  }));
 
   return {
     members: (members as ClinicMembership[]) || [],

@@ -50,17 +50,20 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
       }
     }
 
-    // Check if user already has an active clinic workspace
+    // Check if user already has a clinic workspace
     const { data: membership, error: memberError } = await dbClient
       .from("clinic_memberships")
       .select("id, clinic_id")
       .eq("user_id", signInData.user.id)
-      .eq("status", "active")
       .limit(1)
       .maybeSingle();
 
     if (memberError) {
       console.warn("Membership check warning during login:", memberError.message);
+    }
+
+    if (membership) {
+      redirect("/dashboard");
     }
 
     // Only redirect to onboarding if we know for sure they have no clinic
