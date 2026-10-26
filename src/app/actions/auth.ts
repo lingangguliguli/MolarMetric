@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { loginSchema, registerSchema, forgotPasswordSchema } from "@/lib/validations";
 import { slugify } from "@/lib/utils";
@@ -167,7 +167,7 @@ export async function createClinicAction(formData: FormData): Promise<AuthAction
   
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
-    return { error: "You must be logged in to create a clinic." };
+    return { error: "You must be logged in to create a clinic. Please sign in and try again." };
   }
 
   const name = formData.get("name") as string;
@@ -189,8 +189,21 @@ export async function createClinicAction(formData: FormData): Promise<AuthAction
     redirect("/dashboard");
   }
 
-  // Ensure user profile exists
-  await supabase.from("profiles").upsert(
+  // Use service client if SUPABASE_SERVICE_ROLE_KEY is set to bypass RLS, otherwise fallback to user's supabase client
+  let dbClient = supabase;
+  if (
+    process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    process.env.SUPABASE_SERVICE_ROLE_KEY !== "your-service-role-key-here"
+  ) {
+    try {
+      dbClient = createServiceClient();
+    } catch {
+      dbClient = supabase;
+    }
+  }
+
+  // 1. Ensure user profile exists
+  const { error: profileError } = await dbClient.from("profiles").upsert(
     {
       user_id: user.id,
       display_name: (user.user_metadata?.display_name as string) || user.email?.split("@")[0] || "Clinic Owner",
@@ -199,36 +212,52 @@ export async function createClinicAction(formData: FormData): Promise<AuthAction
     { onConflict: "user_id" }
   );
 
-  // Create clinic
-  const { data: clinic, error: clinicError } = await supabase
-    .from("clinics")
-    .insert({
-      name,
-      slug,
-      email: formData.get("email") as string || null,
-      phone: formData.get("phone") as string || null,
-      address: formData.get("address") as string || null,
-      city: formData.get("city") as string || null,
-      state: formData.get("state") as string || null,
-      pincode: formData.get("pincode") as string || null,
-      timezone: (formData.get("timezone") as string) || "Asia/Kolkata",
-      currency: (formData.get("currency") as string) || "INR",
-      lead_sources: formData.getAll("lead_sources") as string[] || ["phone", "walk_in", "whatsapp"],
-      onboarding_completed: true,
-    })
-    .select("id")
-    .single();
-
-  if (clinicError || !clinic) {
-    console.error("Clinic creation error:", clinicError?.message);
-    return { error: "Unable to create clinic. Please try again." };
+  if (profileError) {
+    console.error("Profile upsert error:", profileError.message);
+    if (profileError.message.includes("does not exist") || profileError.message.includes("relation")) {
+      return {
+        error: "Database tables not found. Please run the migration script (supabase/migrations/001_initial_schema.sql) in your Supabase SQL Editor.",
+      };
+    }
   }
 
-  // Create owner membership
-  const { error: memberError } = await supabase
+  // 2. Generate clinic ID explicitly on server to avoid RLS select deadlock during insert
+  const clinicId = crypto.randomUUID();
+
+  // 3. Create clinic (WITHOUT chaining .select() so Postgres RLS SELECT policy is not evaluated before membership exists)
+  const { error: clinicError } = await dbClient
+    .from("clinics")
+    .insert({
+      id: clinicId,
+      name,
+      slug,
+      email: (formData.get("email") as string) || null,
+      phone: (formData.get("phone") as string) || null,
+      address: (formData.get("address") as string) || null,
+      city: (formData.get("city") as string) || null,
+      state: (formData.get("state") as string) || null,
+      pincode: (formData.get("pincode") as string) || null,
+      timezone: (formData.get("timezone") as string) || "Asia/Kolkata",
+      currency: (formData.get("currency") as string) || "INR",
+      lead_sources: (formData.getAll("lead_sources") as string[]) || ["phone", "walk_in", "whatsapp"],
+      onboarding_completed: true,
+    });
+
+  if (clinicError) {
+    console.error("Clinic creation error:", clinicError.message);
+    if (clinicError.message.includes("does not exist") || clinicError.message.includes("relation")) {
+      return {
+        error: "Database table 'clinics' not found. Please run the migration script (supabase/migrations/001_initial_schema.sql) in your Supabase SQL Editor.",
+      };
+    }
+    return { error: `Database error: ${clinicError.message}` };
+  }
+
+  // 4. Create owner membership
+  const { error: memberError } = await dbClient
     .from("clinic_memberships")
     .insert({
-      clinic_id: clinic.id,
+      clinic_id: clinicId,
       user_id: user.id,
       role: "owner",
       status: "active",
@@ -236,36 +265,40 @@ export async function createClinicAction(formData: FormData): Promise<AuthAction
 
   if (memberError) {
     console.error("Membership creation error:", memberError.message);
-    return { error: "Clinic created but unable to set up membership. Please contact support." };
+    return { error: `Clinic created but unable to set up owner membership: ${memberError.message}` };
   }
 
-  // Create default message templates
-  await supabase.from("message_templates").insert([
-    {
-      clinic_id: clinic.id,
-      name: "Welcome Message",
-      body: "Hello {{patient_name}}, thank you for your interest in {{clinic_name}}. We'd love to help you with your dental care needs. When would be a good time for a consultation?",
-      variables: ["patient_name", "clinic_name"],
-      purpose: "First contact with new enquiries",
-      active: true,
-    },
-    {
-      clinic_id: clinic.id,
-      name: "Appointment Reminder",
-      body: "Hello {{patient_name}}, this is a reminder about your appointment at {{clinic_name}} on {{appointment_date}} at {{appointment_time}}. Please let us know if you need to reschedule.",
-      variables: ["patient_name", "clinic_name", "appointment_date", "appointment_time"],
-      purpose: "Appointment reminders",
-      active: true,
-    },
-    {
-      clinic_id: clinic.id,
-      name: "Follow-up",
-      body: "Hello {{patient_name}}, we wanted to check in with you. If you have any questions about your dental care or would like to schedule a visit, please don't hesitate to reach out to {{clinic_name}}.",
-      variables: ["patient_name", "clinic_name"],
-      purpose: "General follow-up",
-      active: true,
-    },
-  ]);
+  // 5. Seed default message templates
+  try {
+    await dbClient.from("message_templates").insert([
+      {
+        clinic_id: clinicId,
+        name: "Welcome Message",
+        body: "Hello {{patient_name}}, thank you for your interest in {{clinic_name}}. We'd love to help you with your dental care needs. When would be a good time for a consultation?",
+        variables: ["patient_name", "clinic_name"],
+        purpose: "First contact with new enquiries",
+        active: true,
+      },
+      {
+        clinic_id: clinicId,
+        name: "Appointment Reminder",
+        body: "Hello {{patient_name}}, this is a reminder about your appointment at {{clinic_name}} on {{appointment_date}} at {{appointment_time}}. Please let us know if you need to reschedule.",
+        variables: ["patient_name", "clinic_name", "appointment_date", "appointment_time"],
+        purpose: "Appointment reminders",
+        active: true,
+      },
+      {
+        clinic_id: clinicId,
+        name: "Follow-up",
+        body: "Hello {{patient_name}}, we wanted to check in with you. If you have any questions about your dental care or would like to schedule a visit, please don't hesitate to reach out to {{clinic_name}}.",
+        variables: ["patient_name", "clinic_name"],
+        purpose: "General follow-up",
+        active: true,
+      },
+    ]);
+  } catch (err) {
+    console.warn("Could not seed default message templates:", err);
+  }
 
   redirect("/dashboard");
 }
