@@ -28,7 +28,6 @@
 11. [Testing & Quality Assurance](#-testing--quality-assurance)
 12. [Live Deployment](#-live-deployment)
 13. [Demo Video & Walkthrough Guide](#-demo-video--walkthrough-guide)
-14. [Official Submission Form Details](#-official-submission-form-details)
 
 ---
 
@@ -395,45 +394,3 @@ Evaluators are invited to watch the 3–5 minute demonstration video:
 5. **3:30 – 4:30 | Multi-Tenancy & Security**: Demonstrate team role management, Row Level Security, and the immutable audit log.
 
 ---
-
-## 📝 Official Submission Form Details
-
-Use the details below to fill out the [End-Term Submission Form](https://forms.gle/sBy4sfqyiRG2Zpom9):
-
-```text
-Project Name:
-MolarMetric — Dental Practice Revenue Recovery & Clinical CRM Operating System
-
-Student Name:
-[Enter Your Full Name]
-
-Problem Statement:
-Private dental clinics and multi-chair dental centers in India lose an estimated 35%–45% of potential high-ticket clinical revenue (dental implants, clear aligners, full-mouth rehabilitations) due to disorganized multi-channel inquiry handling, lack of front-desk follow-up discipline, empty chair no-shows, and unmeasured treatment proposal abandonment. Generic CRMs fail to address these dental-specific workflows, Indian phone normalization, and direct WhatsApp merge-tag communication without expensive Meta API costs.
-
-GitHub Repository:
-https://github.com/lingangguliguli/MolarMetric
-
-Deployed Application / Build:
-https://molarmetric.vercel.app/
-
-Demo Video:
-[Paste your accessible 3-5 min Loom / Drive / YouTube link here]
-
-Tech Stack:
-Next.js 14 (App Router & Server Actions), TypeScript, Tailwind CSS, Supabase (PostgreSQL with Row Level Security & Auth), Cashfree Payment Gateway, Vitest, and Vercel.
-
-Major Features:
-1. Multi-Channel Patient Inquiry Pipeline with Indian E.164 phone normalization, duplicate detection, and 7-stage clinical progression.
-2. Receptionist Daily Follow-up Queue categorized into Overdue, Due Today, and Upcoming with 1-click mobile dialing and outcome logging.
-3. Consultation Chair Booking with 6-stage attendance lifecycle and automated 24h pre-appointment reminder generation.
-4. Treatment Revenue Recovery Engine tracking Proposed Estimates vs. Accepted Cases vs. Realized Cash Collections across 7 dental specialties.
-5. Dynamic WhatsApp Message Template Engine with dynamic merge tags generating zero-fee wa.me click-to-chat links.
-6. 14-Day Free Trial Engine with real-time countdown, Cashfree payment gateway integration, and multi-tenant PostgreSQL Row Level Security with immutable audit logging.
-```
-
----
-
-## 📄 License & Attribution
-
-Developed by the MolarMetric engineering team for the End-Term Software Project.  
-All rights reserved © 2026 MolarMetric OS.
