@@ -495,7 +495,8 @@ CREATE POLICY opportunities_insert ON treatment_opportunities FOR INSERT
     )
   );
 
-DROP POLICY IF EXISTS opportunities_update ON treatment_opportunities FOR UPDATE
+DROP POLICY IF EXISTS opportunities_update ON treatment_opportunities;
+CREATE POLICY opportunities_update ON treatment_opportunities FOR UPDATE
   USING (
     clinic_id IN (
       SELECT clinic_id FROM clinic_memberships
