@@ -2,6 +2,8 @@
 -- Daily Motivational Messages — 90+ curated messages
 -- ============================================================================
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_motivations_message ON daily_motivations(message);
+
 INSERT INTO daily_motivations (message, category) VALUES
 -- Progress & Consistency
 ('Small, consistent improvements create meaningful progress. Focus on the next useful action.', 'progress'),
@@ -103,4 +105,5 @@ INSERT INTO daily_motivations (message, category) VALUES
 ('A well-organised schedule prevents stress for everyone — patients and staff alike.', 'dental'),
 ('Follow-up isn''t just a task — it''s how you show patients they''re valued.', 'dental'),
 ('The gap between a missed call and a returned call is where trust is built.', 'dental'),
-('Clear treatment plans help patients make confident decisions about their health.', 'dental');
+('Clear treatment plans help patients make confident decisions about their health.', 'dental')
+ON CONFLICT (message) DO NOTHING;
