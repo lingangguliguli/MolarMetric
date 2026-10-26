@@ -374,7 +374,7 @@ Expected output:
 
 ## 🌐 Live Deployment
 
-- **Production URL**: [https://molarmetric.vercel.app/](https://molarmetric.vercel.app/)
+- **Production URL**: [https://molarmetric.vercel.app/](https://molarmetric.vercel.app/)  (Click on this link while pressing ctrl to open in new tab!)
 - **Hosting Platform**: Vercel (Production Global CDN & Serverless Compute)
 - **Database Host**: Supabase Managed PostgreSQL (AWS Mumbai Region `ap-south-1`)
 - **Status**: Operational, connected, and fully functional.
