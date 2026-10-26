@@ -34,22 +34,22 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <aside
       className={cn(
-        "w-64 border-r border-border/60 bg-card/60 backdrop-blur-md flex flex-col justify-between h-screen sticky top-0 z-30",
+        "w-64 border-r border-stone-800/80 bg-[#080C14] text-stone-300 flex flex-col justify-between h-screen sticky top-0 z-30 select-none",
         className
       )}
     >
       <div>
         {/* Brand Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-border/50 gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-            <span className="text-primary-foreground font-black text-sm">M</span>
+        <div className="h-16 flex items-center px-6 border-b border-white/[0.06] gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-md shadow-amber-500/20">
+            <span className="text-stone-950 font-black text-xs">M</span>
           </div>
           <div>
-            <span className="font-bold text-base tracking-tight text-foreground block leading-tight">
+            <span className="font-bold text-sm text-white tracking-tight block leading-tight">
               MolarMetric
             </span>
-            <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground block">
-              Dental Recovery OS
+            <span className="text-[9px] uppercase font-mono tracking-wider text-amber-400/90 block">
+              Revenue OS
             </span>
           </div>
         </div>
@@ -67,16 +67,19 @@ export function Sidebar({ className }: { className?: string }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all group relative",
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                    ? "bg-white/[0.08] text-white font-semibold shadow-xs"
+                    : "text-stone-400 hover:text-white hover:bg-white/[0.04]"
                 )}
               >
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r bg-amber-400" />
+                )}
                 <Icon
                   className={cn(
                     "w-4 h-4 transition-transform group-hover:scale-105",
-                    isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                    isActive ? "text-amber-400" : "text-stone-400 group-hover:text-white"
                   )}
                 />
                 <span>{item.label}</span>
@@ -87,12 +90,12 @@ export function Sidebar({ className }: { className?: string }) {
       </div>
 
       {/* Footer Pill */}
-      <div className="p-4 border-t border-border/50">
-        <div className="rounded-xl border border-champagne/40 bg-champagne/10 p-3 flex items-center gap-2.5">
-          <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
+      <div className="p-4 border-t border-white/[0.06]">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-center gap-2.5">
+          <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />
           <div className="text-[11px] leading-tight">
-            <span className="font-semibold text-foreground block">MolarMetric OS</span>
-            <span className="text-muted-foreground">Lead-to-Revenue Platform</span>
+            <span className="font-semibold text-white block">MolarMetric Enterprise</span>
+            <span className="text-stone-400 text-[10px]">India Practice Edition</span>
           </div>
         </div>
       </div>

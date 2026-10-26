@@ -9,13 +9,9 @@ import {
   Users,
   Clock,
   CalendarCheck,
-  TrendingUp,
   AlertCircle,
   ArrowRight,
   ListTodo,
-  Phone,
-  CheckCircle2,
-  Calendar,
   IndianRupee,
 } from "lucide-react";
 

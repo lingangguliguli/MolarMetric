@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { logoutAction } from "@/app/actions/auth";
 import { NewLeadDialog } from "@/components/leads/new-lead-dialog";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +18,6 @@ import {
   Building2,
   LogOut,
   Settings,
-  Shield,
   Menu,
   X,
   UserCheck,

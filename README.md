@@ -49,7 +49,7 @@
 - **Language**: TypeScript with strict mode enabled (`tsc --noEmit` clean).
 - **Styling**: Tailwind CSS + shadcn/ui design system with Radix UI primitives.
 - **Database & Auth**: Supabase (PostgreSQL with RLS, Supabase Auth via `@supabase/ssr`).
-- **Billing**: Razorpay payment integration with HMAC-SHA256 webhook signature verification.
+- **Billing**: Cashfree payment integration with HMAC-SHA256 webhook signature verification.
 - **Testing**: Vitest + jsdom test suite with 100% pass rate.
 - **CI/CD**: GitHub Actions pipeline validating lint, type-check, and automated unit tests.
 
@@ -119,12 +119,14 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 │   │   │   └── settings/          # Clinic profile & security audit log
 │   │   ├── actions/               # Server Actions for all business domains
 │   │   ├── api/                   # Webhook & health check endpoints
+│   │   │   ├── health/            # Health status route
+│   │   │   └── webhooks/cashfree/ # Cashfree payment webhook handler
 │   │   └── onboarding/            # 3-step clinic setup wizard
 │   ├── components/                # UI components & domain-specific views
 │   ├── lib/
 │   │   ├── supabase/              # Client, server, and middleware session clients
 │   │   ├── auth-context.ts        # Active tenant & user role resolver
-│   │   ├── razorpay.ts            # Billing client & webhook signature verification
+│   │   ├── cashfree.ts            # Cashfree payments client & webhook signature verification
 │   │   ├── types.ts               # Domain TypeScript interfaces
 │   │   ├── utils.ts               # Phone normalization, formatting, security
 │   │   └── validations.ts         # Zod schemas for all forms & actions
