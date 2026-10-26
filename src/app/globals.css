@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Premium B2B palette — midnight navy, warm ivory, champagne accents */
+    --background: 40 33% 97%;        /* warm ivory */
+    --foreground: 222 47% 11%;       /* deep ink */
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 222 47% 16%;          /* midnight navy */
+    --primary-foreground: 40 33% 97%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 16%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 220 14% 96%;
+    --accent-foreground: 222 47% 16%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 84% 29%;          /* restrained emerald */
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;           /* warm amber */
+    --warning-foreground: 0 0% 100%;
+
+    --champagne: 38 40% 72%;         /* brushed gold accent */
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 222 47% 16%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar tokens */
+    --sidebar: 222 47% 11%;
+    --sidebar-foreground: 220 14% 96%;
+    --sidebar-accent: 222 47% 18%;
+    --sidebar-accent-foreground: 40 33% 97%;
+    --sidebar-border: 222 30% 20%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  /* Focus visible for keyboard nav */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+}
+
+/* Scrollbar styling */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 3px;
+  }
+}
