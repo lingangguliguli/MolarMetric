@@ -177,18 +177,6 @@ export async function createClinicAction(formData: FormData): Promise<AuthAction
 
   const slug = slugify(name) + "-" + Date.now().toString(36);
 
-  // Check if user already has a clinic (prevent duplicate on refresh)
-  const { data: existingMembership } = await supabase
-    .from("clinic_memberships")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("role", "owner")
-    .maybeSingle();
-
-  if (existingMembership) {
-    redirect("/dashboard");
-  }
-
   // Use service client if SUPABASE_SERVICE_ROLE_KEY is set to bypass RLS, otherwise fallback to user's supabase client
   let dbClient = supabase;
   if (
@@ -200,6 +188,19 @@ export async function createClinicAction(formData: FormData): Promise<AuthAction
     } catch {
       dbClient = supabase;
     }
+  }
+
+  // Check if user already has an active clinic (prevent duplicate on refresh)
+  const { data: existingMembership } = await dbClient
+    .from("clinic_memberships")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+
+  if (existingMembership) {
+    redirect("/dashboard");
   }
 
   // 1. Ensure user profile exists

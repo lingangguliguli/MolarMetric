@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { Clinic, ClinicMembership, Profile, UserRole } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
@@ -23,17 +23,50 @@ export async function getAuthenticatedClinic(): Promise<AuthenticatedContext> {
     redirect("/login");
   }
 
-  // Get active membership with clinic details
-  const { data: membership, error: memberError } = await supabase
+  // Use service client if available to safely load clinic context without RLS recursion
+  let dbClient = supabase;
+  if (
+    process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    process.env.SUPABASE_SERVICE_ROLE_KEY !== "your-service-role-key-here"
+  ) {
+    try {
+      dbClient = createServiceClient();
+    } catch {
+      dbClient = supabase;
+    }
+  }
+
+  // Get active membership with clinic details (most recently created first)
+  const { data: membership, error: memberError } = await dbClient
     .from("clinic_memberships")
     .select("*, clinic:clinics(*)")
     .eq("user_id", user.id)
     .eq("status", "active")
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (memberError || !membership || !membership.clinic) {
+  if (memberError) {
+    console.error("Auth context membership query error:", memberError.message);
+  }
+
+  // If membership exists but clinic object didn't join properly, fetch clinic directly
+  let clinic = membership?.clinic as Clinic | null;
+  if (membership && !clinic && membership.clinic_id) {
+    const { data: directClinic, error: clinicErr } = await dbClient
+      .from("clinics")
+      .select("*")
+      .eq("id", membership.clinic_id)
+      .maybeSingle();
+
+    if (directClinic) {
+      clinic = directClinic as Clinic;
+    } else if (clinicErr) {
+      console.error("Auth context direct clinic fetch error:", clinicErr.message);
+    }
+  }
+
+  if (!membership || !clinic) {
     redirect("/onboarding");
   }
 
@@ -49,7 +82,7 @@ export async function getAuthenticatedClinic(): Promise<AuthenticatedContext> {
     user_id: user.id,
     display_name: user.user_metadata?.display_name || user.email?.split("@")[0] || "User",
     avatar_url: null,
-    timezone: (membership.clinic as Clinic).timezone || "Asia/Kolkata",
+    timezone: clinic.timezone || "Asia/Kolkata",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -57,7 +90,7 @@ export async function getAuthenticatedClinic(): Promise<AuthenticatedContext> {
   return {
     user,
     profile: userProfile,
-    clinic: membership.clinic as Clinic,
+    clinic,
     membership: membership as ClinicMembership,
     role: membership.role as UserRole,
   };

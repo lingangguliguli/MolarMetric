@@ -303,16 +303,34 @@ DROP POLICY IF EXISTS profiles_update ON profiles;
 CREATE POLICY profiles_update ON profiles FOR UPDATE
   USING (user_id = auth.uid());
 
+-- Security definer helpers to eliminate RLS recursion on clinic_memberships
+CREATE OR REPLACE FUNCTION get_user_clinic_ids(p_user_id UUID)
+RETURNS TABLE (clinic_id UUID) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT cm.clinic_id
+  FROM public.clinic_memberships cm
+  WHERE cm.user_id = p_user_id AND cm.status = 'active';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+CREATE OR REPLACE FUNCTION get_user_admin_clinic_ids(p_user_id UUID)
+RETURNS TABLE (clinic_id UUID) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT cm.clinic_id
+  FROM public.clinic_memberships cm
+  WHERE cm.user_id = p_user_id AND cm.status = 'active' AND cm.role IN ('owner', 'admin');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
 -- Clinics: Accessible through membership OR during creation
 ALTER TABLE clinics ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS clinics_select ON clinics;
 CREATE POLICY clinics_select ON clinics FOR SELECT
   USING (
-    id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS clinics_insert ON clinics;
@@ -322,10 +340,7 @@ CREATE POLICY clinics_insert ON clinics FOR INSERT
 DROP POLICY IF EXISTS clinics_update ON clinics;
 CREATE POLICY clinics_update ON clinics FOR UPDATE
   USING (
-    id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active' AND role IN ('owner', 'admin')
-    )
+    id IN (SELECT clinic_id FROM get_user_admin_clinic_ids(auth.uid()))
   );
 
 -- Clinic Memberships
@@ -334,11 +349,8 @@ ALTER TABLE clinic_memberships ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS memberships_select ON clinic_memberships;
 CREATE POLICY memberships_select ON clinic_memberships FOR SELECT
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships AS m
-      WHERE m.user_id = auth.uid() AND m.status = 'active'
-    )
-    OR user_id = auth.uid()
+    user_id = auth.uid()
+    OR clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS memberships_insert ON clinic_memberships;
@@ -348,10 +360,7 @@ CREATE POLICY memberships_insert ON clinic_memberships FOR INSERT
 DROP POLICY IF EXISTS memberships_update ON clinic_memberships;
 CREATE POLICY memberships_update ON clinic_memberships FOR UPDATE
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships AS m
-      WHERE m.user_id = auth.uid() AND m.status = 'active' AND m.role IN ('owner', 'admin')
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_admin_clinic_ids(auth.uid()))
   );
 
 -- Leads: Accessible by clinic members
@@ -360,37 +369,25 @@ ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS leads_select ON leads;
 CREATE POLICY leads_select ON leads FOR SELECT
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS leads_insert ON leads;
 CREATE POLICY leads_insert ON leads FOR INSERT
   WITH CHECK (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS leads_update ON leads;
 CREATE POLICY leads_update ON leads FOR UPDATE
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS leads_delete ON leads;
 CREATE POLICY leads_delete ON leads FOR DELETE
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active' AND role IN ('owner', 'admin')
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_admin_clinic_ids(auth.uid()))
   );
 
 -- Follow-up Tasks
@@ -399,28 +396,19 @@ ALTER TABLE follow_up_tasks ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tasks_select ON follow_up_tasks;
 CREATE POLICY tasks_select ON follow_up_tasks FOR SELECT
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS tasks_insert ON follow_up_tasks;
 CREATE POLICY tasks_insert ON follow_up_tasks FOR INSERT
   WITH CHECK (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS tasks_update ON follow_up_tasks;
 CREATE POLICY tasks_update ON follow_up_tasks FOR UPDATE
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 -- Lead Events
@@ -429,19 +417,13 @@ ALTER TABLE lead_events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS events_select ON lead_events;
 CREATE POLICY events_select ON lead_events FOR SELECT
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS events_insert ON lead_events;
 CREATE POLICY events_insert ON lead_events FOR INSERT
   WITH CHECK (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 -- Appointments
@@ -450,28 +432,19 @@ ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS appointments_select ON appointments;
 CREATE POLICY appointments_select ON appointments FOR SELECT
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS appointments_insert ON appointments;
 CREATE POLICY appointments_insert ON appointments FOR INSERT
   WITH CHECK (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS appointments_update ON appointments;
 CREATE POLICY appointments_update ON appointments FOR UPDATE
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 -- Treatment Opportunities
@@ -480,28 +453,19 @@ ALTER TABLE treatment_opportunities ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS opportunities_select ON treatment_opportunities;
 CREATE POLICY opportunities_select ON treatment_opportunities FOR SELECT
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS opportunities_insert ON treatment_opportunities;
 CREATE POLICY opportunities_insert ON treatment_opportunities FOR INSERT
   WITH CHECK (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS opportunities_update ON treatment_opportunities;
 CREATE POLICY opportunities_update ON treatment_opportunities FOR UPDATE
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 -- Campaigns
@@ -510,19 +474,13 @@ ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS campaigns_select ON campaigns;
 CREATE POLICY campaigns_select ON campaigns FOR SELECT
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS campaigns_insert ON campaigns;
 CREATE POLICY campaigns_insert ON campaigns FOR INSERT
   WITH CHECK (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active' AND role IN ('owner', 'admin')
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_admin_clinic_ids(auth.uid()))
   );
 
 -- Message Templates
@@ -531,28 +489,19 @@ ALTER TABLE message_templates ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS templates_select ON message_templates;
 CREATE POLICY templates_select ON message_templates FOR SELECT
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS templates_insert ON message_templates;
 CREATE POLICY templates_insert ON message_templates FOR INSERT
   WITH CHECK (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active' AND role IN ('owner', 'admin')
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_admin_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS templates_update ON message_templates;
 CREATE POLICY templates_update ON message_templates FOR UPDATE
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active' AND role IN ('owner', 'admin')
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_admin_clinic_ids(auth.uid()))
   );
 
 -- Invitations
@@ -561,20 +510,14 @@ ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS invitations_select ON invitations;
 CREATE POLICY invitations_select ON invitations FOR SELECT
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active' AND role IN ('owner', 'admin')
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_admin_clinic_ids(auth.uid()))
     OR email = (SELECT email FROM auth.users WHERE id = auth.uid())
   );
 
 DROP POLICY IF EXISTS invitations_insert ON invitations;
 CREATE POLICY invitations_insert ON invitations FOR INSERT
   WITH CHECK (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active' AND role IN ('owner', 'admin')
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_admin_clinic_ids(auth.uid()))
   );
 
 -- Audit Events
@@ -583,19 +526,13 @@ ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS audit_select ON audit_events;
 CREATE POLICY audit_select ON audit_events FOR SELECT
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active' AND role IN ('owner', 'admin')
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_admin_clinic_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS audit_insert ON audit_events;
 CREATE POLICY audit_insert ON audit_events FOR INSERT
   WITH CHECK (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_clinic_ids(auth.uid()))
   );
 
 -- Daily Motivations (public read)
@@ -626,10 +563,7 @@ ALTER TABLE subscription_events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS subscription_select ON subscription_events;
 CREATE POLICY subscription_select ON subscription_events FOR SELECT
   USING (
-    clinic_id IN (
-      SELECT clinic_id FROM clinic_memberships
-      WHERE user_id = auth.uid() AND status = 'active' AND role = 'owner'
-    )
+    clinic_id IN (SELECT clinic_id FROM get_user_admin_clinic_ids(auth.uid()))
   );
 
 -- ============================================================================
