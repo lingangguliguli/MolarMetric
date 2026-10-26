@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Dental Revenue Recovery OS — Database Schema Migration
--- Version: 001_initial_schema
+-- Version: 001_initial_schema (Idempotent / Safe for multiple runs)
 -- ============================================================================
 
 -- Enable UUID extension
@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================================================
 -- PROFILES
 -- ============================================================================
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name TEXT NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE profiles (
 -- ============================================================================
 -- CLINICS
 -- ============================================================================
-CREATE TABLE clinics (
+CREATE TABLE IF NOT EXISTS clinics (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
@@ -44,7 +44,7 @@ CREATE TABLE clinics (
 -- ============================================================================
 -- CLINIC MEMBERSHIPS
 -- ============================================================================
-CREATE TABLE clinic_memberships (
+CREATE TABLE IF NOT EXISTS clinic_memberships (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -55,13 +55,13 @@ CREATE TABLE clinic_memberships (
   UNIQUE(clinic_id, user_id)
 );
 
-CREATE INDEX idx_memberships_user ON clinic_memberships(user_id) WHERE status = 'active';
-CREATE INDEX idx_memberships_clinic ON clinic_memberships(clinic_id) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_memberships_user ON clinic_memberships(user_id) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_memberships_clinic ON clinic_memberships(clinic_id) WHERE status = 'active';
 
 -- ============================================================================
 -- LEADS
 -- ============================================================================
-CREATE TABLE leads (
+CREATE TABLE IF NOT EXISTS leads (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -83,17 +83,17 @@ CREATE TABLE leads (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_leads_clinic ON leads(clinic_id);
-CREATE INDEX idx_leads_clinic_stage ON leads(clinic_id, stage);
-CREATE INDEX idx_leads_clinic_source ON leads(clinic_id, source);
-CREATE INDEX idx_leads_assigned ON leads(assigned_to);
-CREATE INDEX idx_leads_phone ON leads(clinic_id, phone);
-CREATE INDEX idx_leads_created ON leads(clinic_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_leads_clinic ON leads(clinic_id);
+CREATE INDEX IF NOT EXISTS idx_leads_clinic_stage ON leads(clinic_id, stage);
+CREATE INDEX IF NOT EXISTS idx_leads_clinic_source ON leads(clinic_id, source);
+CREATE INDEX IF NOT EXISTS idx_leads_assigned ON leads(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(clinic_id, phone);
+CREATE INDEX IF NOT EXISTS idx_leads_created ON leads(clinic_id, created_at DESC);
 
 -- ============================================================================
 -- FOLLOW-UP TASKS
 -- ============================================================================
-CREATE TABLE follow_up_tasks (
+CREATE TABLE IF NOT EXISTS follow_up_tasks (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -108,15 +108,15 @@ CREATE TABLE follow_up_tasks (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_tasks_clinic_status ON follow_up_tasks(clinic_id, status);
-CREATE INDEX idx_tasks_due ON follow_up_tasks(clinic_id, due_at) WHERE status = 'pending';
-CREATE INDEX idx_tasks_lead ON follow_up_tasks(lead_id);
-CREATE INDEX idx_tasks_assigned ON follow_up_tasks(assigned_to, status);
+CREATE INDEX IF NOT EXISTS idx_tasks_clinic_status ON follow_up_tasks(clinic_id, status);
+CREATE INDEX IF NOT EXISTS idx_tasks_due ON follow_up_tasks(clinic_id, due_at) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_tasks_lead ON follow_up_tasks(lead_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_assigned ON follow_up_tasks(assigned_to, status);
 
 -- ============================================================================
 -- LEAD EVENTS
 -- ============================================================================
-CREATE TABLE lead_events (
+CREATE TABLE IF NOT EXISTS lead_events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -126,13 +126,13 @@ CREATE TABLE lead_events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_events_lead ON lead_events(lead_id, created_at DESC);
-CREATE INDEX idx_events_clinic ON lead_events(clinic_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_lead ON lead_events(lead_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_clinic ON lead_events(clinic_id, created_at DESC);
 
 -- ============================================================================
 -- APPOINTMENTS
 -- ============================================================================
-CREATE TABLE appointments (
+CREATE TABLE IF NOT EXISTS appointments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -145,14 +145,14 @@ CREATE TABLE appointments (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_appointments_clinic ON appointments(clinic_id, scheduled_at);
-CREATE INDEX idx_appointments_lead ON appointments(lead_id);
-CREATE INDEX idx_appointments_status ON appointments(clinic_id, status);
+CREATE INDEX IF NOT EXISTS idx_appointments_clinic ON appointments(clinic_id, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_appointments_lead ON appointments(lead_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments(clinic_id, status);
 
 -- ============================================================================
 -- TREATMENT OPPORTUNITIES
 -- ============================================================================
-CREATE TABLE treatment_opportunities (
+CREATE TABLE IF NOT EXISTS treatment_opportunities (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -168,13 +168,13 @@ CREATE TABLE treatment_opportunities (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_opportunities_clinic ON treatment_opportunities(clinic_id, status);
-CREATE INDEX idx_opportunities_lead ON treatment_opportunities(lead_id);
+CREATE INDEX IF NOT EXISTS idx_opportunities_clinic ON treatment_opportunities(clinic_id, status);
+CREATE INDEX IF NOT EXISTS idx_opportunities_lead ON treatment_opportunities(lead_id);
 
 -- ============================================================================
 -- CAMPAIGNS
 -- ============================================================================
-CREATE TABLE campaigns (
+CREATE TABLE IF NOT EXISTS campaigns (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -189,12 +189,12 @@ CREATE TABLE campaigns (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_campaigns_clinic ON campaigns(clinic_id);
+CREATE INDEX IF NOT EXISTS idx_campaigns_clinic ON campaigns(clinic_id);
 
 -- ============================================================================
 -- MESSAGE TEMPLATES
 -- ============================================================================
-CREATE TABLE message_templates (
+CREATE TABLE IF NOT EXISTS message_templates (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -206,12 +206,12 @@ CREATE TABLE message_templates (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_templates_clinic ON message_templates(clinic_id) WHERE active = true;
+CREATE INDEX IF NOT EXISTS idx_templates_clinic ON message_templates(clinic_id) WHERE active = true;
 
 -- ============================================================================
 -- INVITATIONS
 -- ============================================================================
-CREATE TABLE invitations (
+CREATE TABLE IF NOT EXISTS invitations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
@@ -224,13 +224,13 @@ CREATE TABLE invitations (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_invitations_token ON invitations(token) WHERE status = 'pending';
-CREATE INDEX idx_invitations_email ON invitations(email) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_invitations_email ON invitations(email) WHERE status = 'pending';
 
 -- ============================================================================
 -- AUDIT EVENTS
 -- ============================================================================
-CREATE TABLE audit_events (
+CREATE TABLE IF NOT EXISTS audit_events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   actor_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -239,12 +239,12 @@ CREATE TABLE audit_events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_audit_clinic ON audit_events(clinic_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_clinic ON audit_events(clinic_id, created_at DESC);
 
 -- ============================================================================
 -- DAILY MOTIVATIONS (message library)
 -- ============================================================================
-CREATE TABLE daily_motivations (
+CREATE TABLE IF NOT EXISTS daily_motivations (
   id SERIAL PRIMARY KEY,
   message TEXT NOT NULL,
   category TEXT NOT NULL DEFAULT 'general'
@@ -253,7 +253,7 @@ CREATE TABLE daily_motivations (
 -- ============================================================================
 -- DAILY MOTIVATION RECORDS (per user per day)
 -- ============================================================================
-CREATE TABLE daily_motivation_records (
+CREATE TABLE IF NOT EXISTS daily_motivation_records (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   local_date DATE NOT NULL,
@@ -263,15 +263,15 @@ CREATE TABLE daily_motivation_records (
   UNIQUE(user_id, local_date)
 );
 
-CREATE INDEX idx_motivation_records_user ON daily_motivation_records(user_id, local_date DESC);
+CREATE INDEX IF NOT EXISTS idx_motivation_records_user ON daily_motivation_records(user_id, local_date DESC);
 
 -- ============================================================================
 -- SUBSCRIPTION EVENTS
 -- ============================================================================
-CREATE TABLE subscription_events (
+CREATE TABLE IF NOT EXISTS subscription_events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
-  provider TEXT NOT NULL DEFAULT 'razorpay',
+  provider TEXT NOT NULL DEFAULT 'cashfree',
   provider_event_id TEXT,
   event_type TEXT NOT NULL,
   plan_id TEXT,
@@ -282,27 +282,31 @@ CREATE TABLE subscription_events (
   UNIQUE(provider, provider_event_id)
 );
 
-CREATE INDEX idx_subscription_clinic ON subscription_events(clinic_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subscription_clinic ON subscription_events(clinic_id, created_at DESC);
 
 -- ============================================================================
--- ROW LEVEL SECURITY POLICIES
+-- ROW LEVEL SECURITY POLICIES (Idempotent Drop + Re-create)
 -- ============================================================================
 
 -- Profiles: Users can read/update their own profile
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS profiles_select ON profiles;
 CREATE POLICY profiles_select ON profiles FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS profiles_insert ON profiles;
 CREATE POLICY profiles_insert ON profiles FOR INSERT
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS profiles_update ON profiles;
 CREATE POLICY profiles_update ON profiles FOR UPDATE
   USING (user_id = auth.uid());
 
--- Clinics: Only accessible through membership
+-- Clinics: Accessible through membership OR during creation
 ALTER TABLE clinics ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS clinics_select ON clinics;
 CREATE POLICY clinics_select ON clinics FOR SELECT
   USING (
     id IN (
@@ -311,9 +315,11 @@ CREATE POLICY clinics_select ON clinics FOR SELECT
     )
   );
 
+DROP POLICY IF EXISTS clinics_insert ON clinics;
 CREATE POLICY clinics_insert ON clinics FOR INSERT
-  WITH CHECK (true); -- Controlled by application logic during onboarding
+  WITH CHECK (true);
 
+DROP POLICY IF EXISTS clinics_update ON clinics;
 CREATE POLICY clinics_update ON clinics FOR UPDATE
   USING (
     id IN (
@@ -325,6 +331,7 @@ CREATE POLICY clinics_update ON clinics FOR UPDATE
 -- Clinic Memberships
 ALTER TABLE clinic_memberships ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS memberships_select ON clinic_memberships;
 CREATE POLICY memberships_select ON clinic_memberships FOR SELECT
   USING (
     clinic_id IN (
@@ -334,9 +341,11 @@ CREATE POLICY memberships_select ON clinic_memberships FOR SELECT
     OR user_id = auth.uid()
   );
 
+DROP POLICY IF EXISTS memberships_insert ON clinic_memberships;
 CREATE POLICY memberships_insert ON clinic_memberships FOR INSERT
-  WITH CHECK (true); -- Controlled by application logic
+  WITH CHECK (true);
 
+DROP POLICY IF EXISTS memberships_update ON clinic_memberships;
 CREATE POLICY memberships_update ON clinic_memberships FOR UPDATE
   USING (
     clinic_id IN (
@@ -348,6 +357,7 @@ CREATE POLICY memberships_update ON clinic_memberships FOR UPDATE
 -- Leads: Accessible by clinic members
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS leads_select ON leads;
 CREATE POLICY leads_select ON leads FOR SELECT
   USING (
     clinic_id IN (
@@ -356,6 +366,7 @@ CREATE POLICY leads_select ON leads FOR SELECT
     )
   );
 
+DROP POLICY IF EXISTS leads_insert ON leads;
 CREATE POLICY leads_insert ON leads FOR INSERT
   WITH CHECK (
     clinic_id IN (
@@ -364,6 +375,7 @@ CREATE POLICY leads_insert ON leads FOR INSERT
     )
   );
 
+DROP POLICY IF EXISTS leads_update ON leads;
 CREATE POLICY leads_update ON leads FOR UPDATE
   USING (
     clinic_id IN (
@@ -372,6 +384,7 @@ CREATE POLICY leads_update ON leads FOR UPDATE
     )
   );
 
+DROP POLICY IF EXISTS leads_delete ON leads;
 CREATE POLICY leads_delete ON leads FOR DELETE
   USING (
     clinic_id IN (
@@ -383,6 +396,7 @@ CREATE POLICY leads_delete ON leads FOR DELETE
 -- Follow-up Tasks
 ALTER TABLE follow_up_tasks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS tasks_select ON follow_up_tasks;
 CREATE POLICY tasks_select ON follow_up_tasks FOR SELECT
   USING (
     clinic_id IN (
@@ -391,6 +405,7 @@ CREATE POLICY tasks_select ON follow_up_tasks FOR SELECT
     )
   );
 
+DROP POLICY IF EXISTS tasks_insert ON follow_up_tasks;
 CREATE POLICY tasks_insert ON follow_up_tasks FOR INSERT
   WITH CHECK (
     clinic_id IN (
@@ -399,6 +414,7 @@ CREATE POLICY tasks_insert ON follow_up_tasks FOR INSERT
     )
   );
 
+DROP POLICY IF EXISTS tasks_update ON follow_up_tasks;
 CREATE POLICY tasks_update ON follow_up_tasks FOR UPDATE
   USING (
     clinic_id IN (
@@ -410,6 +426,7 @@ CREATE POLICY tasks_update ON follow_up_tasks FOR UPDATE
 -- Lead Events
 ALTER TABLE lead_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS events_select ON lead_events;
 CREATE POLICY events_select ON lead_events FOR SELECT
   USING (
     clinic_id IN (
@@ -418,6 +435,7 @@ CREATE POLICY events_select ON lead_events FOR SELECT
     )
   );
 
+DROP POLICY IF EXISTS events_insert ON lead_events;
 CREATE POLICY events_insert ON lead_events FOR INSERT
   WITH CHECK (
     clinic_id IN (
@@ -429,6 +447,7 @@ CREATE POLICY events_insert ON lead_events FOR INSERT
 -- Appointments
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS appointments_select ON appointments;
 CREATE POLICY appointments_select ON appointments FOR SELECT
   USING (
     clinic_id IN (
@@ -437,6 +456,7 @@ CREATE POLICY appointments_select ON appointments FOR SELECT
     )
   );
 
+DROP POLICY IF EXISTS appointments_insert ON appointments;
 CREATE POLICY appointments_insert ON appointments FOR INSERT
   WITH CHECK (
     clinic_id IN (
@@ -445,6 +465,7 @@ CREATE POLICY appointments_insert ON appointments FOR INSERT
     )
   );
 
+DROP POLICY IF EXISTS appointments_update ON appointments;
 CREATE POLICY appointments_update ON appointments FOR UPDATE
   USING (
     clinic_id IN (
@@ -456,6 +477,7 @@ CREATE POLICY appointments_update ON appointments FOR UPDATE
 -- Treatment Opportunities
 ALTER TABLE treatment_opportunities ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS opportunities_select ON treatment_opportunities;
 CREATE POLICY opportunities_select ON treatment_opportunities FOR SELECT
   USING (
     clinic_id IN (
@@ -464,6 +486,7 @@ CREATE POLICY opportunities_select ON treatment_opportunities FOR SELECT
     )
   );
 
+DROP POLICY IF EXISTS opportunities_insert ON treatment_opportunities;
 CREATE POLICY opportunities_insert ON treatment_opportunities FOR INSERT
   WITH CHECK (
     clinic_id IN (
@@ -472,7 +495,7 @@ CREATE POLICY opportunities_insert ON treatment_opportunities FOR INSERT
     )
   );
 
-CREATE POLICY opportunities_update ON treatment_opportunities FOR UPDATE
+DROP POLICY IF EXISTS opportunities_update ON treatment_opportunities FOR UPDATE
   USING (
     clinic_id IN (
       SELECT clinic_id FROM clinic_memberships
@@ -483,6 +506,7 @@ CREATE POLICY opportunities_update ON treatment_opportunities FOR UPDATE
 -- Campaigns
 ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS campaigns_select ON campaigns;
 CREATE POLICY campaigns_select ON campaigns FOR SELECT
   USING (
     clinic_id IN (
@@ -491,6 +515,7 @@ CREATE POLICY campaigns_select ON campaigns FOR SELECT
     )
   );
 
+DROP POLICY IF EXISTS campaigns_insert ON campaigns;
 CREATE POLICY campaigns_insert ON campaigns FOR INSERT
   WITH CHECK (
     clinic_id IN (
@@ -502,6 +527,7 @@ CREATE POLICY campaigns_insert ON campaigns FOR INSERT
 -- Message Templates
 ALTER TABLE message_templates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS templates_select ON message_templates;
 CREATE POLICY templates_select ON message_templates FOR SELECT
   USING (
     clinic_id IN (
@@ -510,6 +536,7 @@ CREATE POLICY templates_select ON message_templates FOR SELECT
     )
   );
 
+DROP POLICY IF EXISTS templates_insert ON message_templates;
 CREATE POLICY templates_insert ON message_templates FOR INSERT
   WITH CHECK (
     clinic_id IN (
@@ -518,6 +545,7 @@ CREATE POLICY templates_insert ON message_templates FOR INSERT
     )
   );
 
+DROP POLICY IF EXISTS templates_update ON message_templates;
 CREATE POLICY templates_update ON message_templates FOR UPDATE
   USING (
     clinic_id IN (
@@ -529,6 +557,7 @@ CREATE POLICY templates_update ON message_templates FOR UPDATE
 -- Invitations
 ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS invitations_select ON invitations;
 CREATE POLICY invitations_select ON invitations FOR SELECT
   USING (
     clinic_id IN (
@@ -538,6 +567,7 @@ CREATE POLICY invitations_select ON invitations FOR SELECT
     OR email = (SELECT email FROM auth.users WHERE id = auth.uid())
   );
 
+DROP POLICY IF EXISTS invitations_insert ON invitations;
 CREATE POLICY invitations_insert ON invitations FOR INSERT
   WITH CHECK (
     clinic_id IN (
@@ -549,6 +579,7 @@ CREATE POLICY invitations_insert ON invitations FOR INSERT
 -- Audit Events
 ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS audit_select ON audit_events;
 CREATE POLICY audit_select ON audit_events FOR SELECT
   USING (
     clinic_id IN (
@@ -557,6 +588,7 @@ CREATE POLICY audit_select ON audit_events FOR SELECT
     )
   );
 
+DROP POLICY IF EXISTS audit_insert ON audit_events;
 CREATE POLICY audit_insert ON audit_events FOR INSERT
   WITH CHECK (
     clinic_id IN (
@@ -568,24 +600,29 @@ CREATE POLICY audit_insert ON audit_events FOR INSERT
 -- Daily Motivations (public read)
 ALTER TABLE daily_motivations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS motivations_select ON daily_motivations;
 CREATE POLICY motivations_select ON daily_motivations FOR SELECT
   USING (true);
 
 -- Daily Motivation Records
 ALTER TABLE daily_motivation_records ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS motivation_records_select ON daily_motivation_records;
 CREATE POLICY motivation_records_select ON daily_motivation_records FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS motivation_records_insert ON daily_motivation_records;
 CREATE POLICY motivation_records_insert ON daily_motivation_records FOR INSERT
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS motivation_records_update ON daily_motivation_records;
 CREATE POLICY motivation_records_update ON daily_motivation_records FOR UPDATE
   USING (user_id = auth.uid());
 
 -- Subscription Events
 ALTER TABLE subscription_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS subscription_select ON subscription_events;
 CREATE POLICY subscription_select ON subscription_events FOR SELECT
   USING (
     clinic_id IN (
@@ -606,22 +643,39 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_profiles_updated_at ON profiles;
 CREATE TRIGGER trg_profiles_updated_at BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS trg_clinics_updated_at ON clinics;
 CREATE TRIGGER trg_clinics_updated_at BEFORE UPDATE ON clinics
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS trg_memberships_updated_at ON clinic_memberships;
 CREATE TRIGGER trg_memberships_updated_at BEFORE UPDATE ON clinic_memberships
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS trg_leads_updated_at ON leads;
 CREATE TRIGGER trg_leads_updated_at BEFORE UPDATE ON leads
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS trg_tasks_updated_at ON follow_up_tasks;
 CREATE TRIGGER trg_tasks_updated_at BEFORE UPDATE ON follow_up_tasks
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS trg_appointments_updated_at ON appointments;
 CREATE TRIGGER trg_appointments_updated_at BEFORE UPDATE ON appointments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS trg_opportunities_updated_at ON treatment_opportunities;
 CREATE TRIGGER trg_opportunities_updated_at BEFORE UPDATE ON treatment_opportunities
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS trg_campaigns_updated_at ON campaigns;
 CREATE TRIGGER trg_campaigns_updated_at BEFORE UPDATE ON campaigns
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS trg_templates_updated_at ON message_templates;
 CREATE TRIGGER trg_templates_updated_at BEFORE UPDATE ON message_templates
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
@@ -637,11 +691,13 @@ BEGIN
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'display_name', NEW.email),
     'Asia/Kolkata'
-  );
+  )
+  ON CONFLICT (user_id) DO NOTHING;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
