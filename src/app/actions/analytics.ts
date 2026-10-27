@@ -35,7 +35,7 @@ export async function getDashboardData(timeRange: "7d" | "30d" | "90d" | "all" =
     fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
   }
 
-  // 1. Leads query
+  // 1. Prepare leads query
   let leadsQuery = supabase
     .from("leads")
     .select("id, stage, source, created_at, first_contact_at, name, phone")
@@ -46,18 +46,7 @@ export async function getDashboardData(timeRange: "7d" | "30d" | "90d" | "all" =
     leadsQuery = leadsQuery.gte("created_at", fromDate);
   }
 
-  const { data: leadsData } = await leadsQuery.order("created_at", { ascending: false });
-  const leads = leadsData || [];
-
-  // 2. Overdue follow-up tasks count
-  const { count: overdueCount } = await supabase
-    .from("follow_up_tasks")
-    .select("id", { count: "exact", head: true })
-    .eq("clinic_id", clinic.id)
-    .eq("status", "pending")
-    .lt("due_at", now.toISOString());
-
-  // 3. Appointments query
+  // 2. Prepare appointments query
   let apptsQuery = supabase
     .from("appointments")
     .select("id, status, scheduled_at")
@@ -66,10 +55,8 @@ export async function getDashboardData(timeRange: "7d" | "30d" | "90d" | "all" =
   if (fromDate) {
     apptsQuery = apptsQuery.gte("scheduled_at", fromDate);
   }
-  const { data: appointmentsData } = await apptsQuery;
-  const appointments = appointmentsData || [];
 
-  // 4. Treatment opportunities query
+  // 3. Prepare treatment opportunities query
   let oppsQuery = supabase
     .from("treatment_opportunities")
     .select("id, status, proposed_value, accepted_value, collected_amount, service_category")
@@ -78,8 +65,24 @@ export async function getDashboardData(timeRange: "7d" | "30d" | "90d" | "all" =
   if (fromDate) {
     oppsQuery = oppsQuery.gte("created_at", fromDate);
   }
-  const { data: oppsData } = await oppsQuery;
-  const opportunities = oppsData || [];
+
+  // Execute all 4 independent database queries concurrently
+  const [leadsRes, overdueRes, apptsRes, oppsRes] = await Promise.all([
+    leadsQuery.order("created_at", { ascending: false }),
+    supabase
+      .from("follow_up_tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("clinic_id", clinic.id)
+      .eq("status", "pending")
+      .lt("due_at", now.toISOString()),
+    apptsQuery,
+    oppsQuery,
+  ]);
+
+  const leads = leadsRes.data || [];
+  const overdueCount = overdueRes.count || 0;
+  const appointments = apptsRes.data || [];
+  const opportunities = oppsRes.data || [];
 
   // Calculate KPIs
   const newEnquiries = leads.length;

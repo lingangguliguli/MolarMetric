@@ -50,11 +50,12 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
       }
     }
 
-    // Check if user already has a clinic workspace
+    // Check if user already has an active clinic workspace
     const { data: membership, error: memberError } = await dbClient
       .from("clinic_memberships")
       .select("id, clinic_id")
       .eq("user_id", signInData.user.id)
+      .eq("status", "active")
       .limit(1)
       .maybeSingle();
 

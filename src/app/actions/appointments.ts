@@ -21,7 +21,7 @@ export async function getAppointments(params: {
 
   let query = supabase
     .from("appointments")
-    .select("*, lead:leads(*)")
+    .select("id, clinic_id, lead_id, scheduled_at, duration_minutes, status, booking_source, notes, created_at, lead:leads(id, name, phone, stage, service_interest)")
     .eq("clinic_id", clinic.id);
 
   if (params.status && params.status !== "all") {
@@ -36,14 +36,14 @@ export async function getAppointments(params: {
     query = query.lte("scheduled_at", params.toDate);
   }
 
-  const { data, error } = await query.order("scheduled_at", { ascending: true });
+  const { data, error } = await query.order("scheduled_at", { ascending: true }).limit(200);
 
   if (error) {
     console.error("Error fetching appointments:", error.message);
     return [];
   }
 
-  return (data as Appointment[]) || [];
+  return (data as unknown as Appointment[]) || [];
 }
 
 export async function createAppointment(input: AppointmentCreateInput) {

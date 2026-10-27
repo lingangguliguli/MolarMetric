@@ -44,7 +44,7 @@ export async function getLeads(params: GetLeadsParams = {}): Promise<PaginatedRe
 
   let query = dbClient
     .from("leads")
-    .select("*", { count: "exact" })
+    .select("id, clinic_id, name, phone, email, stage, source, service_interest, estimated_value, assigned_to, first_contact_at, created_at, updated_at", { count: "exact" })
     .eq("clinic_id", clinic.id)
     .eq("archived", false);
 
@@ -102,40 +102,40 @@ export async function getLeadById(id: string) {
     return null;
   }
 
-  // Fetch timeline events
-  const { data: events } = await dbClient
-    .from("lead_events")
-    .select("*")
-    .eq("lead_id", id)
-    .order("created_at", { ascending: false });
-
-  // Fetch follow up tasks
-  const { data: tasks } = await dbClient
-    .from("follow_up_tasks")
-    .select("*")
-    .eq("lead_id", id)
-    .order("due_at", { ascending: true });
-
-  // Fetch appointments
-  const { data: appointments } = await supabase
-    .from("appointments")
-    .select("*")
-    .eq("lead_id", id)
-    .order("scheduled_at", { ascending: false });
-
-  // Fetch treatment opportunities
-  const { data: opportunities } = await supabase
-    .from("treatment_opportunities")
-    .select("*")
-    .eq("lead_id", id)
-    .order("created_at", { ascending: false });
+  // Fetch timeline events, tasks, appointments, and treatment opportunities concurrently
+  const [eventsRes, tasksRes, apptsRes, oppsRes] = await Promise.all([
+    dbClient
+      .from("lead_events")
+      .select("*")
+      .eq("lead_id", id)
+      .order("created_at", { ascending: false })
+      .limit(100),
+    dbClient
+      .from("follow_up_tasks")
+      .select("*")
+      .eq("lead_id", id)
+      .order("due_at", { ascending: true })
+      .limit(100),
+    supabase
+      .from("appointments")
+      .select("*")
+      .eq("lead_id", id)
+      .order("scheduled_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("treatment_opportunities")
+      .select("*")
+      .eq("lead_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
 
   return {
     lead: lead as Lead,
-    events: events || [],
-    tasks: tasks || [],
-    appointments: appointments || [],
-    opportunities: opportunities || [],
+    events: eventsRes.data || [],
+    tasks: tasksRes.data || [],
+    appointments: apptsRes.data || [],
+    opportunities: oppsRes.data || [],
   };
 }
 

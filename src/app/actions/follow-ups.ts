@@ -28,30 +28,37 @@ export async function getFollowUpQueue(): Promise<TaskQueueResult> {
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
   const nowIso = now.toISOString();
 
-  // Fetch pending tasks
-  const { data: pendingTasks, error: pendingErr } = await supabase
-    .from("follow_up_tasks")
-    .select("*, lead:leads(*)")
-    .eq("clinic_id", clinic.id)
-    .eq("status", "pending")
-    .order("due_at", { ascending: true });
+  const taskColumns = "id, clinic_id, lead_id, title, type, priority, status, due_at, completed_at, outcome, outcome_notes, created_at, lead:leads(id, name, phone, stage, service_interest)";
 
-  if (pendingErr) {
-    console.error("Error fetching tasks:", pendingErr.message);
+  // Fetch pending tasks and completed today tasks concurrently
+  const [pendingRes, completedRes] = await Promise.all([
+    supabase
+      .from("follow_up_tasks")
+      .select(taskColumns)
+      .eq("clinic_id", clinic.id)
+      .eq("status", "pending")
+      .order("due_at", { ascending: true })
+      .limit(250),
+    supabase
+      .from("follow_up_tasks")
+      .select(taskColumns)
+      .eq("clinic_id", clinic.id)
+      .eq("status", "completed")
+      .gte("completed_at", startOfDay)
+      .lte("completed_at", endOfDay)
+      .order("completed_at", { ascending: false })
+      .limit(100),
+  ]);
+
+  if (pendingRes.error) {
+    console.error("Error fetching pending tasks:", pendingRes.error.message);
+  }
+  if (completedRes.error) {
+    console.error("Error fetching completed tasks:", completedRes.error.message);
   }
 
-  // Fetch completed today
-  const { data: completedTodayTasks } = await supabase
-    .from("follow_up_tasks")
-    .select("*, lead:leads(*)")
-    .eq("clinic_id", clinic.id)
-    .eq("status", "completed")
-    .gte("completed_at", startOfDay)
-    .lte("completed_at", endOfDay)
-    .order("completed_at", { ascending: false });
-
-  const tasks = (pendingTasks as FollowUpTask[]) || [];
-  const completed = (completedTodayTasks as FollowUpTask[]) || [];
+  const tasks = (pendingRes.data as unknown as FollowUpTask[]) || [];
+  const completed = (completedRes.data as unknown as FollowUpTask[]) || [];
 
   const overdue: FollowUpTask[] = [];
   const dueToday: FollowUpTask[] = [];

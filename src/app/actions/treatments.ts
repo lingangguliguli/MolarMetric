@@ -19,21 +19,21 @@ export async function getTreatmentOpportunities(params: {
 
   let query = supabase
     .from("treatment_opportunities")
-    .select("*, lead:leads(*)")
+    .select("id, clinic_id, lead_id, service_category, proposed_value, accepted_value, collected_amount, status, loss_reason, loss_notes, proposed_at, accepted_at, created_at, lead:leads(id, name, phone, stage)")
     .eq("clinic_id", clinic.id);
 
   if (params.status && params.status !== "all") {
     query = query.eq("status", params.status);
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(200);
 
   if (error) {
     console.error("Error fetching opportunities:", error.message);
     return [];
   }
 
-  return (data as TreatmentOpportunity[]) || [];
+  return (data as unknown as TreatmentOpportunity[]) || [];
 }
 
 export async function createTreatmentOpportunity(input: OpportunityCreateInput) {
