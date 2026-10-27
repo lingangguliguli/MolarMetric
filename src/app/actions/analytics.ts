@@ -6,7 +6,10 @@ import { safeDivide, safePercentage } from "@/lib/utils";
 import type { DashboardKPIs } from "@/lib/types";
 
 export interface AnalyticsReportData {
-  kpis: DashboardKPIs;
+  kpis: DashboardKPIs & {
+    closedEnquiries: number;
+    wonEnquiries: number;
+  };
   funnelData: { stage: string; count: number; percentage: number }[];
   sourcePerformance: { source: string; leads: number; won: number; conversionRate: number }[];
   revenueByCategory: { category: string; proposed: number; accepted: number; collected: number }[];
@@ -16,8 +19,17 @@ export interface AnalyticsReportData {
     phone: string;
     source: string;
     stage: string;
+    service_interest?: string;
+    first_contact_at?: string | null;
     created_at: string;
   }>;
+  firstAwaitingLead?: {
+    id: string;
+    name: string;
+    phone: string;
+    source: string;
+    service_interest?: string;
+  } | null;
 }
 
 export async function getDashboardData(timeRange: "7d" | "30d" | "90d" | "all" = "30d"): Promise<AnalyticsReportData> {
@@ -38,7 +50,7 @@ export async function getDashboardData(timeRange: "7d" | "30d" | "90d" | "all" =
   // 1. Prepare leads query
   let leadsQuery = supabase
     .from("leads")
-    .select("id, stage, source, created_at, first_contact_at, name, phone")
+    .select("id, stage, source, created_at, first_contact_at, name, phone, service_interest")
     .eq("clinic_id", clinic.id)
     .eq("archived", false);
 
@@ -172,6 +184,10 @@ export async function getDashboardData(timeRange: "7d" | "30d" | "90d" | "all" =
     ...vals,
   })).sort((a, b) => b.collected - a.collected);
 
+  const closedEnquiries = leads.filter((l) => l.stage === "won" || l.stage === "lost").length;
+  const wonEnquiries = leads.filter((l) => l.stage === "won").length;
+  const awaitingLead = leads.find((l) => l.stage === "new" && !l.first_contact_at);
+
   return {
     kpis: {
       newEnquiries,
@@ -185,16 +201,29 @@ export async function getDashboardData(timeRange: "7d" | "30d" | "90d" | "all" =
       treatmentAcceptanceRate,
       acceptedOpportunityValue,
       totalCollections,
+      closedEnquiries,
+      wonEnquiries,
     },
     funnelData,
     sourcePerformance,
     revenueByCategory,
-    recentLeads: leads.slice(0, 5).map((l) => ({
+    firstAwaitingLead: awaitingLead
+      ? {
+          id: awaitingLead.id,
+          name: awaitingLead.name,
+          phone: awaitingLead.phone,
+          source: awaitingLead.source,
+          service_interest: (awaitingLead as any).service_interest || undefined,
+        }
+      : null,
+    recentLeads: leads.slice(0, 10).map((l) => ({
       id: l.id,
       name: l.name,
       phone: l.phone,
       source: l.source,
       stage: l.stage,
+      service_interest: (l as any).service_interest || undefined,
+      first_contact_at: l.first_contact_at,
       created_at: l.created_at,
     })),
   };

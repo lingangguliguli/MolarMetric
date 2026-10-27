@@ -1,4 +1,5 @@
 import { getLeads } from "@/app/actions/leads";
+import { getAuthenticatedClinic } from "@/lib/auth-context";
 import { LeadsTableView } from "@/components/leads/leads-table-view";
 import { Users } from "lucide-react";
 import type { LeadStage, LeadSource } from "@/lib/types";
@@ -18,13 +19,16 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   const search = searchParams.search || "";
   const page = parseInt(searchParams.page || "1", 10);
 
-  const leadsData = await getLeads({
-    stage,
-    source,
-    search,
-    page,
-    pageSize: 20,
-  });
+  const [leadsData, { role }] = await Promise.all([
+    getLeads({
+      stage,
+      source,
+      search,
+      page,
+      pageSize: 20,
+    }),
+    getAuthenticatedClinic(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -48,6 +52,7 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
         currentStage={stage}
         currentSource={source}
         currentSearch={search}
+        currentUserRole={role}
       />
     </div>
   );

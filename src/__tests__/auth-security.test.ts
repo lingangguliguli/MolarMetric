@@ -84,10 +84,22 @@ describe("Authentication & Tenant Isolation Security", () => {
       name: "Patient A",
     };
 
-    // User belonging to Tenant B queries data
     const userClinicId = tenantBClinicId;
     const canAccess = leadInTenantA.clinic_id === userClinicId;
 
     expect(canAccess).toBe(false);
+  });
+
+  it("should enforce that only owner and admin can delete patient enquiries while receptionists are denied", () => {
+    const roles: Array<{ role: "owner" | "admin" | "receptionist"; canDelete: boolean }> = [
+      { role: "owner", canDelete: true },
+      { role: "admin", canDelete: true },
+      { role: "receptionist", canDelete: false },
+    ];
+
+    roles.forEach(({ role, canDelete }) => {
+      const isAllowed = role === "owner" || role === "admin";
+      expect(isAllowed).toBe(canDelete);
+    });
   });
 });

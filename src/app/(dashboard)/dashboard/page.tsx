@@ -11,8 +11,12 @@ import {
   CalendarCheck,
   AlertCircle,
   ArrowRight,
+  ArrowUpRight,
   ListTodo,
   IndianRupee,
+  Phone,
+  CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -21,10 +25,10 @@ export default async function DashboardPage() {
     getFollowUpQueue(),
   ]);
 
-  const { kpis, funnelData, sourcePerformance, revenueByCategory, recentLeads } = data;
+  const { kpis, funnelData, sourcePerformance, revenueByCategory, recentLeads, firstAwaitingLead } = data;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in-50 duration-200">
       {/* Welcome & Overview Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -32,7 +36,7 @@ export default async function DashboardPage() {
             Revenue Recovery Dashboard
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Real-time enquiry flow, follow-up coordination, and revenue conversion metrics.
+            Real-time enquiry flow, receptionist follow-up coordination, and revenue conversion metrics.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -50,13 +54,57 @@ export default async function DashboardPage() {
           <Link href="/leads">
             <Button size="sm" className="gap-1.5">
               <Users className="h-4 w-4" />
-              All Enquiries
+              All Enquiries ({kpis.newEnquiries})
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* Critical Action Banner (if overdue tasks exist) */}
+      {/* Critical Highlight: Enquiry Awaiting First Response */}
+      {firstAwaitingLead && (
+        <div className="rounded-xl border border-primary/40 bg-primary/10 p-4.5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm text-foreground">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="p-2.5 rounded-xl bg-primary/20 text-primary flex-shrink-0">
+              <AlertCircle className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                  1 Enquiry Awaiting Response
+                </span>
+                <Badge variant="outline" className="text-[10px] bg-primary/20 text-primary border-primary/30">
+                  Needs First Callback
+                </Badge>
+              </div>
+              <p className="text-sm font-semibold text-foreground mt-0.5">
+                Patient: <span className="underline decoration-primary/40 underline-offset-2">{firstAwaitingLead.name}</span>
+                <span className="font-mono text-xs text-muted-foreground ml-2">({firstAwaitingLead.phone})</span>
+                {firstAwaitingLead.service_interest && (
+                  <span className="text-muted-foreground font-normal ml-2">
+                    • Requirement: <strong className="text-foreground">{firstAwaitingLead.service_interest}</strong>
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <a href={`tel:${firstAwaitingLead.phone}`}>
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs bg-background/50 hover:bg-background">
+                <Phone className="h-3.5 w-3.5 text-primary" />
+                Call Patient
+              </Button>
+            </a>
+            <Link href={`/leads/${firstAwaitingLead.id}`}>
+              <Button size="sm" className="gap-1.5 text-xs font-bold shadow-sm">
+                Open Patient Profile
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Critical Overdue Action Banner (if overdue tasks exist) */}
       {taskQueue.stats.overdueCount > 0 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200">
           <div className="flex items-center gap-3">
@@ -79,90 +127,110 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Primary KPI Grid */}
+      {/* Primary KPI Grid (Every Card is Fully Clickable & Navigable) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1: New Enquiries */}
-        <Card className="border-border/60 hover:border-border transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              New Enquiries (30d)
-            </CardTitle>
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Users className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {kpis.newEnquiries}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-              <span className="font-medium text-foreground">
-                {kpis.awaitingFirstContact}
-              </span>{" "}
-              awaiting first contact
-            </p>
-          </CardContent>
-        </Card>
+        {/* KPI 1: Total Enquiries */}
+        <Link
+          href={recentLeads.length === 1 ? `/leads/${recentLeads[0].id}` : "/leads"}
+          className="group block focus:outline-none"
+        >
+          <Card className="border-border/60 group-hover:border-primary/60 transition-all duration-200 group-hover:shadow-md cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                Total Enquiries (30d)
+                <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                <Users className="h-4 w-4" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {kpis.newEnquiries}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1 flex items-center justify-between flex-wrap gap-1">
+                <span className={kpis.awaitingFirstContact > 0 ? "font-semibold text-amber-500" : ""}>
+                  {kpis.awaitingFirstContact} awaiting response
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {kpis.closedEnquiries} closed ({kpis.wonEnquiries} won)
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
         {/* KPI 2: First Response Time */}
-        <Card className="border-border/60 hover:border-border transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Avg First Response
-            </CardTitle>
-            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600">
-              <Clock className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {kpis.avgFirstResponseMinutes ? `${kpis.avgFirstResponseMinutes}m` : "—"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Target: Under 15 minutes
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/follow-ups" className="group block focus:outline-none">
+          <Card className="border-border/60 group-hover:border-blue-500/60 transition-all duration-200 group-hover:shadow-md cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-blue-500 transition-colors flex items-center gap-1.5">
+                Avg First Response
+                <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                <Clock className="h-4 w-4" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {kpis.avgFirstResponseMinutes ? `${kpis.avgFirstResponseMinutes}m` : "—"}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
+                <span>Target: Under 15m</span>
+                <span className="text-[11px] text-blue-500 font-medium">Open Queue →</span>
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
         {/* KPI 3: Booking & Attendance */}
-        <Card className="border-border/60 hover:border-border transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Attendance Rate
-            </CardTitle>
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
-              <CalendarCheck className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {kpis.attendanceRate}%
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {kpis.appointmentsAttended} of {kpis.appointmentsBooked} attended
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/appointments" className="group block focus:outline-none">
+          <Card className="border-border/60 group-hover:border-emerald-500/60 transition-all duration-200 group-hover:shadow-md cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-emerald-500 transition-colors flex items-center gap-1.5">
+                Attendance Rate
+                <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                <CalendarCheck className="h-4 w-4" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {kpis.attendanceRate}%
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
+                <span>{kpis.appointmentsAttended} of {kpis.appointmentsBooked} attended</span>
+                <span className="text-[11px] text-emerald-500 font-medium">Calendar →</span>
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
         {/* KPI 4: Collected Revenue */}
-        <Card className="border-border/60 hover:border-border transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Revenue Collected
-            </CardTitle>
-            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600">
-              <IndianRupee className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {formatCurrency(kpis.totalCollections)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {formatCurrency(kpis.acceptedOpportunityValue)} accepted
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/treatments" className="group block focus:outline-none">
+          <Card className="border-border/60 group-hover:border-amber-500/60 transition-all duration-200 group-hover:shadow-md cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-amber-500 transition-colors flex items-center gap-1.5">
+                Revenue Realized
+                <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                <IndianRupee className="h-4 w-4" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {formatCurrency(kpis.totalCollections)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
+                <span>{formatCurrency(kpis.acceptedOpportunityValue)} accepted</span>
+                <span className="text-[11px] text-amber-500 font-medium">Pipeline →</span>
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Middle Section: Funnel & Source Performance */}
@@ -176,7 +244,7 @@ export default async function DashboardPage() {
                   Enquiry-to-Revenue Conversion Funnel
                 </CardTitle>
                 <CardDescription>
-                  Tracking patient progression from initial contact to clinical collection.
+                  Click any stage to inspect matching patient records.
                 </CardDescription>
               </div>
               <Badge variant="outline" className="text-xs">
@@ -185,23 +253,41 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {funnelData.map((stage) => (
-                <div key={stage.stage} className="space-y-1.5">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-foreground">{stage.stage}</span>
-                    <span className="text-muted-foreground font-mono">
-                      {stage.count} ({stage.percentage}%)
-                    </span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className="bg-primary h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max(4, stage.percentage)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-3.5">
+              {funnelData.map((stage) => {
+                let stageHref = "/leads";
+                if (stage.stage === "Contacted") stageHref = "/leads?stage=contacted";
+                else if (stage.stage === "Appointment Booked") stageHref = "/appointments";
+                else if (stage.stage === "Attended Clinic") stageHref = "/appointments?status=attended";
+                else if (stage.stage === "Treatment Plan") stageHref = "/treatments";
+                else if (stage.stage === "Won / Paid") stageHref = "/leads?stage=won";
+
+                return (
+                  <Link
+                    key={stage.stage}
+                    href={stageHref}
+                    className="group block p-2 rounded-lg hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-semibold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                          {stage.stage}
+                          <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </span>
+                        <span className="text-muted-foreground font-mono">
+                          {stage.count} enquiries ({stage.percentage}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+                        <div
+                          className="bg-primary h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.max(4, stage.percentage)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -222,14 +308,15 @@ export default async function DashboardPage() {
                 No enquiry channels recorded yet.
               </p>
             ) : (
-              <div className="space-y-3.5">
+              <div className="space-y-3">
                 {sourcePerformance.map((src) => (
-                  <div
+                  <Link
                     key={src.source}
-                    className="flex items-center justify-between p-2 rounded-lg bg-muted/40 text-xs"
+                    href={`/leads?source=${src.source}`}
+                    className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors text-xs block group"
                   >
                     <div>
-                      <span className="font-semibold text-foreground capitalize block">
+                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors capitalize block">
                         {src.source.replace("_", " ")}
                       </span>
                       <span className="text-[11px] text-muted-foreground">
@@ -244,7 +331,7 @@ export default async function DashboardPage() {
                         {src.conversionRate}% rate
                       </span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -279,12 +366,13 @@ export default async function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {revenueByCategory.map((cat) => (
-                  <div
+                  <Link
                     key={cat.category}
-                    className="p-3 rounded-xl border border-border/50 bg-card/60 space-y-2 text-xs"
+                    href="/treatments"
+                    className="block p-3 rounded-xl border border-border/50 bg-card/60 hover:border-primary/40 transition-colors space-y-2 text-xs"
                   >
                     <div className="flex justify-between items-center font-medium">
-                      <span className="text-foreground">{cat.category}</span>
+                      <span className="text-foreground font-semibold">{cat.category}</span>
                       <span className="text-emerald-600 font-semibold">
                         {formatCurrency(cat.collected)}
                       </span>
@@ -293,14 +381,14 @@ export default async function DashboardPage() {
                       <span>Proposed: {formatCurrency(cat.proposed)}</span>
                       <span>Accepted: {formatCurrency(cat.accepted)}</span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Recent Enquiries Table */}
+        {/* Recent Enquiries Table (Instant Access to Requirements & Patient Profile) */}
         <Card className="lg:col-span-2 border-border/60">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -309,12 +397,12 @@ export default async function DashboardPage() {
                   Recent Patient Enquiries
                 </CardTitle>
                 <CardDescription>
-                  Latest incoming leads requiring follow-up.
+                  Click any enquiry to view clinical history, requirements, and treatment plans.
                 </CardDescription>
               </div>
               <Link href="/leads">
                 <Button variant="ghost" size="sm" className="text-xs h-7 px-2">
-                  View All Enquiries
+                  View All Enquiries ({kpis.newEnquiries})
                 </Button>
               </Link>
             </div>
@@ -325,7 +413,7 @@ export default async function DashboardPage() {
                 <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
                 <p>No enquiries recorded yet.</p>
                 <p className="text-xs mt-1">
-                  Use the &ldquo;+ New Enquiry&rdquo; button above to log your first lead.
+                  Use the &ldquo;+ New Enquiry&rdquo; button to log your first patient inquiry.
                 </p>
               </div>
             ) : (
@@ -333,28 +421,49 @@ export default async function DashboardPage() {
                 {recentLeads.map((lead) => (
                   <div
                     key={lead.id}
-                    className="py-3 flex items-center justify-between gap-4 text-xs"
+                    className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-muted/30 p-2.5 rounded-lg transition-colors"
                   >
-                    <div>
-                      <Link
-                        href={`/leads/${lead.id}`}
-                        className="font-semibold text-foreground hover:text-primary transition-colors block text-sm"
-                      >
-                        {lead.name}
-                      </Link>
-                      <div className="flex items-center gap-2 mt-0.5 text-muted-foreground text-[11px]">
-                        <span className="font-mono">{lead.phone}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/leads/${lead.id}`}
+                          className="font-bold text-sm text-foreground hover:text-primary transition-colors flex items-center gap-1"
+                        >
+                          {lead.name}
+                          <ArrowRight className="h-3 w-3 opacity-70" />
+                        </Link>
+                        {!lead.first_contact_at && lead.stage === "new" && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-300">
+                            Awaiting Response
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mt-1 text-muted-foreground text-[11px]">
+                        <span className="font-mono text-foreground font-medium">{lead.phone}</span>
                         <span>•</span>
                         <span className="capitalize">{lead.source}</span>
+                        {lead.service_interest && (
+                          <>
+                            <span>•</span>
+                            <span className="text-foreground font-semibold">
+                              Interest: {lead.service_interest}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-[10px] capitalize font-medium">
                         {lead.stage.replace("_", " ")}
                       </Badge>
+                      <a href={`tel:${lead.phone}`} title="Call Patient">
+                        <Button variant="outline" size="sm" className="h-7 w-7 p-0">
+                          <Phone className="h-3.5 w-3.5 text-primary" />
+                        </Button>
+                      </a>
                       <Link href={`/leads/${lead.id}`}>
-                        <Button variant="ghost" size="sm" className="h-7 px-2">
-                          View
+                        <Button size="sm" variant="secondary" className="h-7 px-2.5 text-xs font-semibold">
+                          Open Profile
                         </Button>
                       </Link>
                     </div>

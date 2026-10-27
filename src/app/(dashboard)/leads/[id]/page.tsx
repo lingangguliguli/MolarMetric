@@ -1,4 +1,5 @@
 import { getLeadById } from "@/app/actions/leads";
+import { getAuthenticatedClinic } from "@/lib/auth-context";
 import { LeadDetailView } from "@/components/leads/lead-detail-view";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,10 @@ interface LeadDetailPageProps {
 }
 
 export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
-  const data = await getLeadById(params.id);
+  const [data, { role }] = await Promise.all([
+    getLeadById(params.id),
+    getAuthenticatedClinic(),
+  ]);
 
   if (!data) {
     return (
@@ -37,6 +41,7 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
       tasks={data.tasks as any}
       appointments={data.appointments as any}
       opportunities={data.opportunities as any}
+      currentUserRole={role}
     />
   );
 }

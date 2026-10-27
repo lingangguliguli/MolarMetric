@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { transitionLeadStage, addLeadNote } from "@/app/actions/leads";
+import { transitionLeadStage, addLeadNote, deleteLead } from "@/app/actions/leads";
 import { WhatsAppDraftDialog } from "./whatsapp-draft-dialog";
 import { NewAppointmentDialog } from "@/components/appointments/new-appointment-dialog";
 import { NewOpportunityDialog } from "@/components/treatments/new-opportunity-dialog";
@@ -14,6 +14,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Phone,
   MessageSquare,
   Calendar,
@@ -22,12 +30,14 @@ import {
   CheckCircle2,
   Clock,
   Sparkles,
-  User,
   Send,
   Loader2,
   AlertTriangle,
+  Trash2,
+  IndianRupee,
+  ShieldAlert,
 } from "lucide-react";
-import type { Lead, LeadStage, LeadEvent, FollowUpTask, Appointment, TreatmentOpportunity } from "@/lib/types";
+import type { Lead, LeadStage, LeadEvent, FollowUpTask, Appointment, TreatmentOpportunity, UserRole } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 interface LeadDetailViewProps {
@@ -36,6 +46,7 @@ interface LeadDetailViewProps {
   tasks: FollowUpTask[];
   appointments: Appointment[];
   opportunities: TreatmentOpportunity[];
+  currentUserRole?: UserRole;
 }
 
 const STAGES: { id: LeadStage; label: string }[] = [
@@ -55,6 +66,7 @@ export function LeadDetailView({
   tasks,
   appointments,
   opportunities,
+  currentUserRole = "receptionist",
 }: LeadDetailViewProps) {
   const router = useRouter();
 
@@ -62,11 +74,22 @@ export function LeadDetailView({
   const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
   const [opportunityOpen, setOpportunityOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  // Stage change state
+  // Loading states
   const [transitioning, setTransitioning] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [addingNote, setAddingNote] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Financial calculations
+  const totalProposed = opportunities.reduce((acc, o) => acc + (o.proposed_value || 0), 0);
+  const totalAccepted = opportunities.reduce((acc, o) => acc + (o.accepted_value || 0), 0);
+  const totalCollected = opportunities.reduce((acc, o) => acc + (o.collected_amount || 0), 0);
+  const pendingBalance = Math.max(0, totalAccepted - totalCollected);
+
+  const canDelete = currentUserRole === "owner" || currentUserRole === "admin";
 
   async function handleStageChange(newStage: LeadStage) {
     if (newStage === lead.stage) return;
@@ -86,8 +109,26 @@ export function LeadDetailView({
     router.refresh();
   }
 
+  async function handleDeleteConfirm() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const result = await deleteLead(lead.id);
+      if (result.error) {
+        setDeleteError(result.error);
+        setDeleting(false);
+      } else {
+        setDeleteConfirmOpen(false);
+        router.push("/leads");
+      }
+    } catch (err: any) {
+      setDeleteError(err?.message || "Failed to delete enquiry.");
+      setDeleting(false);
+    }
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in-50 duration-200">
       {/* Top Breadcrumb & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <Link
@@ -125,12 +166,26 @@ export function LeadDetailView({
           </Button>
           <Button
             size="sm"
-            className="gap-1.5 text-xs"
+            className="gap-1.5 text-xs font-semibold"
             onClick={() => setOpportunityOpen(true)}
           >
             <Activity className="h-3.5 w-3.5" />
             Propose Treatment
           </Button>
+
+          {/* Owner-Only Delete Button */}
+          {canDelete && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 border-destructive/30 hover:border-destructive/60"
+              onClick={() => setDeleteConfirmOpen(true)}
+              title="Delete Enquiry (Owner Only)"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          )}
         </div>
       </div>
 
@@ -139,11 +194,21 @@ export function LeadDetailView({
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
             <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-foreground">{lead.name}</h1>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{lead.name}</h1>
                 <Badge variant="outline" className="text-xs uppercase font-semibold capitalize bg-primary/10 text-primary border-primary/20">
                   {lead.stage.replace("_", " ")}
                 </Badge>
+                {lead.stage === "won" && (
+                  <Badge variant="outline" className="text-xs font-semibold bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                    <CheckCircle2 className="h-3 w-3 mr-1" /> Won / Closed Case
+                  </Badge>
+                )}
+                {lead.stage === "lost" && (
+                  <Badge variant="outline" className="text-xs font-semibold bg-slate-500/10 text-slate-400 border-slate-500/20">
+                    Lost ({lead.lost_reason || "Declined"})
+                  </Badge>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
@@ -156,7 +221,7 @@ export function LeadDetailView({
                 {lead.service_interest && (
                   <>
                     <span>•</span>
-                    <span className="font-medium text-foreground">
+                    <span className="font-semibold text-primary">
                       Interest: {lead.service_interest}
                     </span>
                   </>
@@ -164,7 +229,7 @@ export function LeadDetailView({
               </div>
             </div>
 
-            <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl space-y-1">
+            <div className="text-xs text-muted-foreground bg-muted/40 p-3.5 rounded-xl space-y-1.5 flex-shrink-0">
               <div>
                 <span className="font-medium text-foreground">Enquiry Received:</span>{" "}
                 {new Date(lead.created_at).toLocaleString("en-IN", {
@@ -174,21 +239,83 @@ export function LeadDetailView({
               </div>
               <div>
                 <span className="font-medium text-foreground">First Contact:</span>{" "}
-                {lead.first_contact_at
-                  ? new Date(lead.first_contact_at).toLocaleString("en-IN", {
+                {lead.first_contact_at ? (
+                  <span className="text-emerald-600 font-semibold">
+                    {new Date(lead.first_contact_at).toLocaleString("en-IN", {
                       dateStyle: "medium",
                       timeStyle: "short",
-                    })
-                  : "Pending first contact"}
+                    })}
+                  </span>
+                ) : (
+                  <span className="text-amber-500 font-semibold">Awaiting first contact</span>
+                )}
               </div>
+            </div>
+          </div>
+
+          {/* Prominent Revenue & Clinical Resolution Overview */}
+          <div className="mt-6 p-4 rounded-xl border border-border/70 bg-card/60 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                Proposed Treatment
+              </span>
+              <span className="text-lg font-bold text-foreground">
+                {formatCurrency(totalProposed)}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">
+                {opportunities.length} {opportunities.length === 1 ? "procedure" : "procedures"}
+              </span>
+            </div>
+
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                Accepted Quote
+              </span>
+              <span className="text-lg font-bold text-foreground">
+                {formatCurrency(totalAccepted)}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">
+                Agreed clinical fee
+              </span>
+            </div>
+
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 block">
+                Revenue Collected
+              </span>
+              <span className="text-lg font-bold text-emerald-600">
+                {formatCurrency(totalCollected)}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">
+                Realized to clinic
+              </span>
+            </div>
+
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-500 block">
+                Pending Balance
+              </span>
+              <span className={`text-lg font-bold ${pendingBalance > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+                {formatCurrency(pendingBalance)}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">
+                {pendingBalance > 0 ? "Due upon visit" : "Fully settled"}
+              </span>
             </div>
           </div>
 
           {/* Pipeline Stage Progression Stepper */}
           <div className="mt-6 pt-6 border-t border-border/50">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-3">
-              Pipeline Stage Progression
-            </Label>
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Pipeline Stage Progression (Click to Advance)
+              </Label>
+              {transitioning && (
+                <span className="text-xs text-primary flex items-center gap-1 font-semibold">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Updating stage...
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
               {STAGES.map((stg) => {
                 const isCurrent = lead.stage === stg.id;
@@ -197,9 +324,9 @@ export function LeadDetailView({
                     key={stg.id}
                     onClick={() => handleStageChange(stg.id)}
                     disabled={transitioning}
-                    className={`py-2 px-2.5 rounded-lg text-xs font-semibold text-center transition-all border ${
+                    className={`py-2 px-2.5 rounded-lg text-xs font-semibold text-center transition-all border cursor-pointer ${
                       isCurrent
-                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                        ? "bg-primary text-primary-foreground border-primary shadow-xs ring-2 ring-primary/30"
                         : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
                     }`}
                   >
@@ -233,7 +360,7 @@ export function LeadDetailView({
             <CardContent className="p-4">
               <form onSubmit={handleAddNote} className="space-y-3">
                 <Textarea
-                  placeholder="Record an interaction note, patient concern, medical history note, or callback agreement..."
+                  placeholder="Record an interaction note, patient concern, clinical requirement, or agreed callback time..."
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
                   rows={2}
@@ -265,7 +392,6 @@ export function LeadDetailView({
             ) : (
               events.map((evt) => (
                 <div key={evt.id} className="relative pl-6 pb-2">
-                  {/* Dot */}
                   <div className="absolute -left-[31px] top-1 w-3 h-3 rounded-full bg-primary border-2 border-background" />
 
                   <div className="p-3.5 rounded-xl border border-border/60 bg-card text-xs space-y-1">
@@ -326,7 +452,7 @@ export function LeadDetailView({
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-semibold">
-                    Treatment Opportunities
+                    Treatment Opportunities & Revenue
                   </CardTitle>
                   <CardDescription>
                     Proposed clinical procedures, accepted quotes, and collected fees.
@@ -345,7 +471,7 @@ export function LeadDetailView({
             <CardContent>
               {opportunities.length === 0 ? (
                 <p className="text-xs text-muted-foreground py-4 text-center">
-                  No treatment proposals created yet.
+                  No treatment proposals created yet. Click &ldquo;+ Add Procedure&rdquo; to propose treatment.
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -407,7 +533,7 @@ export function LeadDetailView({
             <CardContent>
               {appointments.length === 0 ? (
                 <p className="text-xs text-muted-foreground py-4 text-center">
-                  No appointments booked yet.
+                  No appointments booked yet. Click &ldquo;+ Book Visit&rdquo; to schedule a consultation.
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -444,7 +570,7 @@ export function LeadDetailView({
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold">Follow-up Tasks</CardTitle>
               <CardDescription>
-                Tasks assigned for communicating with this patient.
+                Communication and callback tasks assigned for this patient.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -462,7 +588,7 @@ export function LeadDetailView({
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-foreground capitalize">
-                            {t.task_type.replace("_", " ")}
+                            {(t.task_type || "follow_up").replace(/_/g, " ")}
                           </span>
                           <Badge variant="outline" className="text-[10px] capitalize">
                             {t.status}
@@ -486,6 +612,61 @@ export function LeadDetailView({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Owner Confirmation Dialog for Deleting Lead */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="w-10 h-10 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-2">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <DialogTitle className="text-base font-bold">
+              Permanently Delete Patient Enquiry?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Are you sure you want to delete <strong className="text-foreground">{lead.name}</strong> ({lead.phone})?
+              All associated consultations, treatment plans, follow-up tasks, and activity notes will be permanently removed. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteError && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+              {deleteError}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={deleting}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="text-xs gap-1.5"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete Permanently
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Modals */}
       <WhatsAppDraftDialog

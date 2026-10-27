@@ -460,3 +460,65 @@ export async function exportLeadsCSV(): Promise<string> {
 
   return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
 }
+
+export async function deleteLead(id: string) {
+  const { clinic, user, role } = await getAuthenticatedClinic();
+
+  // STRICT AUTHORIZATION: Only clinic Owner or Admin can delete enquiries.
+  // Receptionists and staff members CANNOT delete patient enquiries.
+  if (role !== "owner" && role !== "admin") {
+    return { error: "Access denied. Only the clinic owner or administrator can delete patient enquiries." };
+  }
+
+  const supabase = createClient();
+  const dbClient = getDbClient(supabase);
+
+  // 1. Verify lead exists and belongs to this clinic
+  const { data: lead, error: fetchErr } = await dbClient
+    .from("leads")
+    .select("id, name, phone")
+    .eq("id", id)
+    .eq("clinic_id", clinic.id)
+    .single();
+
+  if (fetchErr || !lead) {
+    return { error: "Patient enquiry not found or already removed." };
+  }
+
+  // 2. Delete lead (foreign keys in child tables have ON DELETE CASCADE)
+  const { error: deleteErr } = await dbClient
+    .from("leads")
+    .delete()
+    .eq("id", id)
+    .eq("clinic_id", clinic.id);
+
+  if (deleteErr) {
+    console.error("Delete lead database error:", deleteErr.message);
+    return { error: "Failed to delete patient enquiry." };
+  }
+
+  // 3. Record tamper-evident audit event
+  try {
+    await dbClient.from("audit_events").insert({
+      clinic_id: clinic.id,
+      actor_id: user.id,
+      event_type: "lead_deleted",
+      metadata: {
+        deleted_lead_id: id,
+        patient_name: lead.name,
+        patient_phone: lead.phone,
+        deleted_by_role: role,
+      },
+    });
+  } catch (auditErr) {
+    console.warn("Audit logging non-blocking error:", auditErr);
+  }
+
+  revalidatePath("/leads");
+  revalidatePath("/dashboard");
+  revalidatePath("/follow-ups");
+  revalidatePath("/appointments");
+  revalidatePath("/treatments");
+
+  return { success: true };
+}
