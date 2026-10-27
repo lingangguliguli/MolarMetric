@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getAuthenticatedClinic } from "@/lib/auth-context";
+import { getAuthenticatedClinic, assertActiveWorkspace, assertRole } from "@/lib/auth-context";
 import { clinicSetupSchema } from "@/lib/validations";
 import type { AuditEvent, Clinic } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -23,8 +23,14 @@ export async function updateClinicSettings(data: {
 }) {
   const { clinic, user, role } = await getAuthenticatedClinic();
 
-  if (role !== "owner" && role !== "admin") {
-    return { error: "Only clinic owners or administrators can update settings." };
+  const activeCheck = assertActiveWorkspace(clinic);
+  if (!activeCheck.canWrite) {
+    return { error: activeCheck.error };
+  }
+
+  const roleCheck = assertRole(role, ["owner", "admin"]);
+  if (!roleCheck.authorized) {
+    return { error: roleCheck.error };
   }
 
   const parsed = clinicSetupSchema.safeParse(data);

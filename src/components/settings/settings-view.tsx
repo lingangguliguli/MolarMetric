@@ -292,91 +292,59 @@ export function SettingsView({
                       <span>{sub.isTrial ? "14-Day Clinical Pro Trial" : "MolarMetric Pro Plan"}</span>
                       <Badge
                         variant="outline"
-                        className={
-                          sub.isPaid
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                            : sub.isExpired
-                            ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                            : "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                        }
+                        className="bg-amber-500/10 text-amber-400 border-amber-500/30"
                       >
-                        {sub.isPaid
-                          ? "Active Pro"
-                          : sub.isExpired
-                          ? "Trial Expired"
-                          : `${sub.remainingDays} Days Left`}
+                        Supervised Pilot (Free)
                       </Badge>
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      {sub.isTrial
-                        ? `Your clinic workspace is currently enjoying all Enterprise features free for 14 days.`
-                        : `Your clinic workspace is on an active Pro subscription.`}
+                      Your clinic is enrolled in the MolarMetric Supervised Pilot. All operational features are complimentary for pilot clinics.
                     </CardDescription>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold"
-                    onClick={() => {
-                      alert(
-                        "Cashfree Billing: You are currently on the full 14-day free trial. Cashfree checkout integration will activate your billing cycle at ₹2,999/mo after trial completion."
-                      );
-                    }}
-                  >
-                    <CreditCard className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
-                    {sub.isPaid ? "Manage Subscription" : "Upgrade Plan (₹2,999/mo)"}
-                  </Button>
+                  <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs px-3 py-1">
+                    Pilot Access Granted
+                  </Badge>
                 </div>
               </div>
             </CardHeader>
 
             <CardContent className="space-y-6">
-              {/* Trial Days Counter Card */}
-              {sub.isTrial && (
-                <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4 space-y-3">
-                  <div className="flex items-center justify-between text-xs font-medium">
-                    <span className="text-stone-300 flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-amber-400" />
-                      Free Trial Progress
-                    </span>
-                    <span className="text-amber-300 font-bold">
-                      {sub.remainingDays} of {sub.totalTrialDays} days remaining
+              {/* Pilot Status Card */}
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4 space-y-3">
+                <div className="flex items-center justify-between text-xs font-medium">
+                  <span className="text-stone-300 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-amber-400" />
+                    Supervised Pilot Program
+                  </span>
+                  <span className="text-amber-300 font-bold">
+                    Active (1–3 Clinics Cohort)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1 text-xs">
+                  <div>
+                    <span className="text-muted-foreground text-[11px] block">Workspace Created</span>
+                    <span className="font-medium text-foreground">
+                      {new Date(clinic.created_at).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </span>
                   </div>
-
-                  {/* Visual Progress Bar */}
-                  <div className="w-full bg-stone-800/80 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-gradient-to-r from-amber-500 to-amber-300 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${sub.trialPercentRemaining}%` }}
-                    />
+                  <div>
+                    <span className="text-muted-foreground text-[11px] block">Billing Status</span>
+                    <span className="font-medium text-emerald-400">Complimentary Pilot</span>
                   </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1 text-xs">
-                    <div>
-                      <span className="text-muted-foreground text-[11px] block">Trial Started</span>
-                      <span className="font-medium text-foreground">
-                        {new Date(clinic.created_at).toLocaleDateString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-[11px] block">Trial Concludes</span>
-                      <span className="font-medium text-foreground">{sub.formattedExpiresAt}</span>
-                    </div>
-                    <div className="col-span-2 sm:col-span-1">
-                      <span className="text-muted-foreground text-[11px] block">Plan Post-Trial</span>
-                      <span className="font-medium text-amber-400">Pro Plan (₹2,999/mo)</span>
-                    </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <span className="text-muted-foreground text-[11px] block">Commercial Plans</span>
+                    <span className="font-medium text-stone-300">Introduced post-pilot</span>
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Included Features */}
               <div>
@@ -385,9 +353,9 @@ export function SettingsView({
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                   {[
-                    "Unlimited Patient Leads & Follow-up Funnel",
+                    "Patient Enquiry Lifecycle & Follow-up Funnel",
                     "High-Value Treatment Pipeline & Revenue Recovery",
-                    "Customized WhatsApp 1-Click Messaging Templates",
+                    "One-Click Manual WhatsApp Communication Drafts",
                     "Daily Clinical Motivation & Staff Performance Hub",
                     "Role-Based Access for Receptionists & Admins",
                     "Tamper-Evident Audit Logs & Financial Privacy",
@@ -402,16 +370,16 @@ export function SettingsView({
                 </div>
               </div>
 
-              {/* Payment Gateway Information Strip */}
+              {/* Pilot Notice Strip */}
               <div className="p-3.5 rounded-xl border border-stone-800 bg-stone-900/40 flex items-center justify-between text-xs text-stone-400">
                 <div className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-stone-300" />
+                  <Shield className="w-4 h-4 text-amber-400" />
                   <span>
-                    Secured by <strong className="text-stone-200">Cashfree Payments India</strong> — Supports UPI, RuPay, NetBanking & Cards.
+                    Supervised Pilot: Commercial billing is not active during this phase. Practice data is strictly isolated and exportable at any time.
                   </span>
                 </div>
                 <Badge variant="outline" className="border-stone-700 text-stone-300 text-[10px]">
-                  INR (₹) Billing
+                  Zero Charge
                 </Badge>
               </div>
             </CardContent>

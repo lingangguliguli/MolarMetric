@@ -2,24 +2,45 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { registerAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, CheckCircle2, Loader2, UserPlus } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, UserPlus, Eye, EyeOff } from "lucide-react";
 import { BrandLogo } from "@/components/ui/brand-logo";
 
 export default function RegisterPage() {
+  const searchParams = useSearchParams();
+  const planParam = searchParams.get("plan") || "multichair";
+  const normalizedPlan = ["boutique", "multichair", "group"].includes(planParam)
+    ? planParam
+    : "multichair";
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  const planTitles: Record<string, string> = {
+    boutique: "Boutique (Single Chair Pilot)",
+    multichair: "Multi-Chair Practice (Pilot)",
+    group: "Dental Group / Hospital",
+  };
 
   async function handleSubmit(formData: FormData) {
+    if (!termsAccepted) {
+      setError("You must review and accept the Terms of Service and Privacy Policy to proceed.");
+      return;
+    }
     setError(null);
     setSuccess(null);
     setLoading(true);
     try {
+      formData.set("termsAccepted", "true");
+      formData.set("plan", normalizedPlan);
       const result = await registerAction(formData);
       if (result?.error) {
         setError(result.error);
@@ -42,7 +63,12 @@ export default function RegisterPage() {
 
       <Card className="border border-stone-800 bg-stone-900/90 backdrop-blur-xl text-white shadow-2xl rounded-2xl">
         <CardHeader className="space-y-1.5 p-6 sm:p-8">
-          <CardTitle className="text-2xl font-serif text-white tracking-tight">Create your account</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-2xl font-serif text-white tracking-tight">Create your account</CardTitle>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              {planTitles[normalizedPlan] || "Supervised Pilot"}
+            </span>
+          </div>
           <CardDescription className="text-stone-300 text-sm">
             Launch your clinical revenue recovery operating system
           </CardDescription>
@@ -73,6 +99,8 @@ export default function RegisterPage() {
           ) : (
             <>
               <form action={handleSubmit} className="space-y-4">
+                <input type="hidden" name="plan" value={normalizedPlan} />
+
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-stone-200 text-xs font-semibold uppercase tracking-wider">
                     Doctor / Practice Owner Name
@@ -103,13 +131,23 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-stone-200 text-xs font-semibold uppercase tracking-wider">
-                    Password
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-stone-200 text-xs font-semibold uppercase tracking-wider">
+                      Password
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-xs text-stone-400 hover:text-amber-400 flex items-center gap-1"
+                    >
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      <span>{showPassword ? "Hide" : "Show"}</span>
+                    </button>
+                  </div>
                   <Input
                     id="password"
                     name="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     required
                     autoComplete="new-password"
@@ -117,7 +155,7 @@ export default function RegisterPage() {
                     className="bg-stone-950 border-stone-800 text-white placeholder:text-stone-600 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 h-11 rounded-xl"
                   />
                   <p className="text-[11px] text-stone-400">
-                    Must be at least 8 characters with letters and numbers.
+                    Must be at least 8 characters with uppercase, lowercase, and a number.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -127,13 +165,40 @@ export default function RegisterPage() {
                   <Input
                     id="confirmPassword"
                     name="confirmPassword"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     required
                     autoComplete="new-password"
                     className="bg-stone-950 border-stone-800 text-white placeholder:text-stone-600 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 h-11 rounded-xl"
                   />
                 </div>
+
+                {/* Terms and Privacy Acceptance Checkbox */}
+                <div className="pt-2">
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      id="termsAccepted"
+                      name="termsAccepted"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      required
+                      className="mt-1 h-4 w-4 rounded border-stone-700 bg-stone-950 text-amber-500 focus:ring-amber-400 accent-amber-500 cursor-pointer"
+                    />
+                    <span className="text-xs text-stone-300 leading-relaxed">
+                      I agree to the{" "}
+                      <Link href="/terms" target="_blank" className="text-amber-400 underline hover:text-amber-300">
+                        Terms of Service
+                      </Link>{" "}
+                      and{" "}
+                      <Link href="/privacy" target="_blank" className="text-amber-400 underline hover:text-amber-300">
+                        Privacy Policy
+                      </Link>{" "}
+                      (v1.0). I acknowledge MolarMetric processes practice data on documented instructions.
+                    </span>
+                  </label>
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full h-11 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-stone-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-amber-500/20 mt-2"

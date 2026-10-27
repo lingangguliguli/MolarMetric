@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getAuthenticatedClinic } from "@/lib/auth-context";
+import { getAuthenticatedClinic, assertActiveWorkspace } from "@/lib/auth-context";
 import {
   appointmentCreateSchema,
   appointmentUpdateSchema,
@@ -48,6 +48,11 @@ export async function getAppointments(params: {
 
 export async function createAppointment(input: AppointmentCreateInput) {
   const { clinic, user } = await getAuthenticatedClinic();
+  const activeCheck = assertActiveWorkspace(clinic);
+  if (!activeCheck.canWrite) {
+    return { error: activeCheck.error };
+  }
+
   const supabase = createClient();
 
   const parsed = appointmentCreateSchema.safeParse(input);
@@ -118,6 +123,11 @@ export async function updateAppointmentStatus(
   input: AppointmentUpdateInput
 ) {
   const { clinic, user } = await getAuthenticatedClinic();
+  const activeCheck = assertActiveWorkspace(clinic);
+  if (!activeCheck.canWrite) {
+    return { error: activeCheck.error };
+  }
+
   const supabase = createClient();
 
   const parsed = appointmentUpdateSchema.safeParse(input);

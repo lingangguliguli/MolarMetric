@@ -1,9 +1,14 @@
-import { cache } from "react";
+import * as React from "react";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { Clinic, ClinicMembership, Profile, UserRole } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
 import { measureAsync } from "@/lib/perf";
+
+// Safe wrapper for React.cache in environments where React server components are not active (e.g. Vitest)
+const safeCache = typeof (React as any).cache === "function"
+  ? (React as any).cache
+  : <T extends (...args: any[]) => any>(fn: T): T => fn;
 
 export interface AuthenticatedContext {
   user: User;
@@ -18,7 +23,7 @@ export interface AuthenticatedContext {
  * Wrapped with React `cache` so multiple server components and actions
  * within the same request lifecycle share a single database lookup.
  */
-export const getAuthenticatedClinic = cache(async (): Promise<AuthenticatedContext> => {
+export const getAuthenticatedClinic = safeCache(async (): Promise<AuthenticatedContext> => {
   return await measureAsync("auth:getAuthenticatedClinic", async () => {
     const supabase = createClient();
 
@@ -106,3 +111,37 @@ export const getAuthenticatedClinic = cache(async (): Promise<AuthenticatedConte
     };
   }, 200);
 });
+
+import { getSubscriptionInfo } from "@/lib/subscription";
+
+/**
+ * Asserts that the clinic workspace is currently active (trialing or paid).
+ * If the trial has expired and the clinic has not activated a paid plan,
+ * returns canWrite: false to enforce server-side read-only mode on mutations.
+ */
+export function assertActiveWorkspace(clinic: Clinic): { canWrite: boolean; error?: string } {
+  const sub = getSubscriptionInfo(clinic);
+  if (sub.isExpired) {
+    return {
+      canWrite: false,
+      error: "Your practice trial period has ended. The workspace is currently in read-only mode. Please activate a plan to record or modify patient records.",
+    };
+  }
+  return { canWrite: true };
+}
+
+/**
+ * Asserts that the authenticated user's role is within the allowed roles for an action.
+ */
+export function assertRole(
+  currentRole: UserRole,
+  allowedRoles: UserRole[]
+): { authorized: boolean; error?: string } {
+  if (!allowedRoles.includes(currentRole)) {
+    return {
+      authorized: false,
+      error: `Access denied. This action requires ${allowedRoles.join(" or ")} privileges. Your current role is ${currentRole}.`,
+    };
+  }
+  return { authorized: true };
+}

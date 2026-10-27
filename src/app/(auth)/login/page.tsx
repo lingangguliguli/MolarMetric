@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, Loader2, LogIn } from "lucide-react";
+import { AlertCircle, Loader2, LogIn, Eye, EyeOff } from "lucide-react";
 import { BrandLogo } from "@/components/ui/brand-logo";
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(formData: FormData) {
     setError(null);
@@ -71,17 +72,27 @@ export default function LoginPage() {
                 <Label htmlFor="password" className="text-stone-200 text-xs font-semibold uppercase tracking-wider">
                   Password
                 </Label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-amber-400 hover:text-amber-300 transition-colors font-medium"
-                >
-                  Forgot password?
-                </Link>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-xs text-stone-400 hover:text-amber-400 flex items-center gap-1"
+                  >
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    <span>{showPassword ? "Hide" : "Show"}</span>
+                  </button>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-amber-400 hover:text-amber-300 transition-colors font-medium"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
               </div>
               <Input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 required
                 autoComplete="current-password"
@@ -105,10 +116,10 @@ export default function LoginPage() {
           <p className="mt-6 text-center text-xs text-stone-400">
             Don&apos;t have an account?{" "}
             <Link
-              href="/register"
+              href="/register?plan=multichair"
               className="font-bold text-amber-400 hover:text-amber-300 transition-colors ml-1"
             >
-              Start 14-day trial
+              Join supervised pilot
             </Link>
           </p>
         </CardContent>

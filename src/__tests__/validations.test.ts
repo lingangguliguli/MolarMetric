@@ -22,20 +22,31 @@ describe("Validation Schemas", () => {
     expect(invalidEmail.success).toBe(false);
   });
 
-  it("validates register schema requiring password complexity and matching confirmation", () => {
+  it("validates register schema requiring password complexity, terms acceptance, and matching confirmation", () => {
     const valid = registerSchema.safeParse({
       name: "Dr. Arjun Patel",
       email: "arjun@apexdental.in",
       password: "SecurePassword123",
       confirmPassword: "SecurePassword123",
+      termsAccepted: true,
     });
     expect(valid.success).toBe(true);
+
+    const missingTerms = registerSchema.safeParse({
+      name: "Dr. Arjun Patel",
+      email: "arjun@apexdental.in",
+      password: "SecurePassword123",
+      confirmPassword: "SecurePassword123",
+      termsAccepted: false,
+    });
+    expect(missingTerms.success).toBe(false);
 
     const mismatch = registerSchema.safeParse({
       name: "Dr. Arjun Patel",
       email: "arjun@apexdental.in",
       password: "SecurePassword123",
       confirmPassword: "DifferentPassword123",
+      termsAccepted: true,
     });
     expect(mismatch.success).toBe(false);
 
@@ -44,6 +55,7 @@ describe("Validation Schemas", () => {
       email: "arjun@apexdental.in",
       password: "password",
       confirmPassword: "password",
+      termsAccepted: true,
     });
     expect(simplePassword.success).toBe(false);
   });

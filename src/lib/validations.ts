@@ -21,6 +21,10 @@ export const registerSchema = z
         "Password must contain uppercase, lowercase, and a number"
       ),
     confirmPassword: z.string(),
+    termsAccepted: z.boolean().refine((val) => val === true, {
+      message: "You must accept the Terms of Service and Privacy Policy to continue.",
+    }),
+    plan: z.enum(["boutique", "multichair", "group"]).optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",

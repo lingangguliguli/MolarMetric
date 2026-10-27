@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { getAuthenticatedClinic } from "@/lib/auth-context";
+import { getAuthenticatedClinic, assertActiveWorkspace, assertRole } from "@/lib/auth-context";
 import { leadCreateSchema, leadUpdateSchema, type LeadCreateInput, type LeadUpdateInput } from "@/lib/validations";
 import { normalizePhoneNumber, sanitizeCsvValue } from "@/lib/utils";
 import type { Lead, LeadStage, LeadSource, PaginatedResult } from "@/lib/types";
@@ -161,6 +161,11 @@ export async function checkDuplicatePhone(phone: string): Promise<{ exists: bool
 export async function createLead(input: LeadCreateInput) {
   try {
     const { clinic, user } = await getAuthenticatedClinic();
+    const activeCheck = assertActiveWorkspace(clinic);
+    if (!activeCheck.canWrite) {
+      return { error: activeCheck.error };
+    }
+
     const supabase = createClient();
     const dbClient = getDbClient(supabase);
 
@@ -258,6 +263,11 @@ export async function createLead(input: LeadCreateInput) {
 
 export async function updateLead(id: string, input: LeadUpdateInput) {
   const { clinic, user } = await getAuthenticatedClinic();
+  const activeCheck = assertActiveWorkspace(clinic);
+  if (!activeCheck.canWrite) {
+    return { error: activeCheck.error };
+  }
+
   const supabase = createClient();
 
   const parsed = leadUpdateSchema.safeParse(input);
@@ -464,10 +474,14 @@ export async function exportLeadsCSV(): Promise<string> {
 export async function deleteLead(id: string) {
   const { clinic, user, role } = await getAuthenticatedClinic();
 
-  // STRICT AUTHORIZATION: Only clinic Owner or Admin can delete enquiries.
-  // Receptionists and staff members CANNOT delete patient enquiries.
-  if (role !== "owner" && role !== "admin") {
-    return { error: "Access denied. Only the clinic owner or administrator can delete patient enquiries." };
+  const activeCheck = assertActiveWorkspace(clinic);
+  if (!activeCheck.canWrite) {
+    return { error: activeCheck.error };
+  }
+
+  const roleCheck = assertRole(role, ["owner", "admin"]);
+  if (!roleCheck.authorized) {
+    return { error: roleCheck.error };
   }
 
   const supabase = createClient();

@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getAuthenticatedClinic } from "@/lib/auth-context";
+import { getAuthenticatedClinic, assertActiveWorkspace } from "@/lib/auth-context";
 import { invitationCreateSchema, type InvitationCreateInput } from "@/lib/validations";
 import type { ClinicMembership, Invitation, UserRole } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -53,6 +53,11 @@ export async function getTeamMembers() {
 
 export async function inviteTeamMember(input: InvitationCreateInput) {
   const { clinic, user, role } = await getAuthenticatedClinic();
+
+  const activeCheck = assertActiveWorkspace(clinic);
+  if (!activeCheck.canWrite) {
+    return { error: activeCheck.error };
+  }
 
   if (role !== "owner" && role !== "admin") {
     return { error: "Only clinic owners or administrators can invite team members." };

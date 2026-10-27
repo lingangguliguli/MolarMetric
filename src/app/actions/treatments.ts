@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getAuthenticatedClinic } from "@/lib/auth-context";
+import { getAuthenticatedClinic, assertActiveWorkspace } from "@/lib/auth-context";
 import {
   opportunityCreateSchema,
   opportunityUpdateSchema,
@@ -38,6 +38,11 @@ export async function getTreatmentOpportunities(params: {
 
 export async function createTreatmentOpportunity(input: OpportunityCreateInput) {
   const { clinic, user } = await getAuthenticatedClinic();
+  const activeCheck = assertActiveWorkspace(clinic);
+  if (!activeCheck.canWrite) {
+    return { error: activeCheck.error };
+  }
+
   const supabase = createClient();
 
   const parsed = opportunityCreateSchema.safeParse(input);
@@ -96,6 +101,11 @@ export async function updateTreatmentOpportunity(
   input: OpportunityUpdateInput
 ) {
   const { clinic, user } = await getAuthenticatedClinic();
+  const activeCheck = assertActiveWorkspace(clinic);
+  if (!activeCheck.canWrite) {
+    return { error: activeCheck.error };
+  }
+
   const supabase = createClient();
 
   const parsed = opportunityUpdateSchema.safeParse(input);

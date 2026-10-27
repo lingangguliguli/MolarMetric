@@ -4,6 +4,14 @@ import { measureAsync } from "@/lib/perf";
 
 const PUBLIC_ROUTES = [
   "/",
+  "/privacy",
+  "/terms",
+  "/refund-policy",
+  "/contact",
+  "/dpa",
+  "/security",
+  "/robots.txt",
+  "/sitemap.xml",
   "/login",
   "/register",
   "/forgot-password",

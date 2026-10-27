@@ -82,6 +82,8 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     email: formData.get("email") as string,
     password: formData.get("password") as string,
     confirmPassword: formData.get("confirmPassword") as string,
+    termsAccepted: formData.get("termsAccepted") === "on" || formData.get("termsAccepted") === "true",
+    plan: (formData.get("plan") as string) || undefined,
   };
 
   const parsed = registerSchema.safeParse(rawData);
@@ -90,12 +92,18 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
   }
 
   const supabase = createClient();
+  const termsTimestamp = new Date().toISOString();
+  const termsVersion = "1.0";
+
   const { data: signUpData, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
       data: {
         display_name: parsed.data.name,
+        terms_accepted_at: termsTimestamp,
+        terms_version: termsVersion,
+        selected_plan: parsed.data.plan || "multichair",
       },
       emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/callback`,
     },

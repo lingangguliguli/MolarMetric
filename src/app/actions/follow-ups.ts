@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getAuthenticatedClinic } from "@/lib/auth-context";
+import { getAuthenticatedClinic, assertActiveWorkspace } from "@/lib/auth-context";
 import { taskCreateSchema, taskCompleteSchema, type TaskCreateInput } from "@/lib/validations";
 import type { FollowUpTask, TaskType } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -94,6 +94,11 @@ export async function getFollowUpQueue(): Promise<TaskQueueResult> {
 
 export async function createTask(input: TaskCreateInput) {
   const { clinic, user } = await getAuthenticatedClinic();
+  const activeCheck = assertActiveWorkspace(clinic);
+  if (!activeCheck.canWrite) {
+    return { error: activeCheck.error };
+  }
+
   const supabase = createClient();
 
   const parsed = taskCreateSchema.safeParse(input);
@@ -150,6 +155,11 @@ export async function completeTask(
   }
 ) {
   const { clinic, user } = await getAuthenticatedClinic();
+  const activeCheck = assertActiveWorkspace(clinic);
+  if (!activeCheck.canWrite) {
+    return { error: activeCheck.error };
+  }
+
   const supabase = createClient();
 
   const parsed = taskCompleteSchema.safeParse({ outcome });

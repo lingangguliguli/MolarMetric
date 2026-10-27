@@ -2,6 +2,13 @@ import Link from "next/link";
 import { Sparkles, ShieldCheck } from "lucide-react";
 import { BrandLogo } from "@/components/ui/brand-logo";
 
+export const metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+
 export default function AuthLayout({
   children,
 }: {
@@ -40,8 +47,8 @@ export default function AuthLayout({
         </div>
 
         <div className="relative z-10 flex items-center justify-between text-xs text-stone-500 border-t border-white/[0.06] pt-6">
-          <span>MolarMetric Enterprise • India</span>
-          <span>Cashfree & UPI Verified</span>
+          <span>MolarMetric • Supervised Pilot Edition</span>
+          <span>PostgreSQL Row Level Privacy</span>
         </div>
       </div>
 
