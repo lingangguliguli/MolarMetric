@@ -384,7 +384,7 @@ Expected output:
 ## 🎥 Demo Video & Walkthrough Guide
 
 Evaluators are invited to watch the 3–5 minute demonstration video:
-- **Demo Video Link**: *(Insert accessible video link e.g. Loom / YouTube / Google Drive with public view permissions)*
+- **Demo Video Link**: https://drive.google.com/file/d/1pxNfmjHwUA5xsrM6BnEqyghBWKnFKsBd/view?usp=drive_link
 
 ### Recommended Walkthrough Outline:
 1. **0:00 – 0:45 | Problem & Value Proposition**: Explain why independent dental clinics lose ₹2,00,000+ monthly in high-ticket implant and aligner consultations due to front-desk follow-up leakage.
