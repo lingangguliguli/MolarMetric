@@ -16,12 +16,15 @@ import {
   MessageSquare,
   AlertCircle,
   Loader2,
+  Plus,
 } from "lucide-react";
 import type { Appointment, AppointmentStatus } from "@/lib/types";
 import { generateWhatsAppUrl } from "@/lib/utils";
+import { NewAppointmentDialog, type LeadOption } from "./new-appointment-dialog";
 
 interface AppointmentsViewProps {
   initialAppointments: Appointment[];
+  leadsList?: LeadOption[];
 }
 
 const STATUS_CONFIG: Record<AppointmentStatus, { label: string; color: string }> = {
@@ -33,10 +36,11 @@ const STATUS_CONFIG: Record<AppointmentStatus, { label: string; color: string }>
   rescheduled: { label: "Rescheduled", color: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20" },
 };
 
-export function AppointmentsView({ initialAppointments }: AppointmentsViewProps) {
+export function AppointmentsView({ initialAppointments, leadsList }: AppointmentsViewProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<AppointmentStatus | "all">("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [newApptOpen, setNewApptOpen] = useState(false);
 
   const filtered = filter === "all"
     ? initialAppointments
@@ -51,42 +55,62 @@ export function AppointmentsView({ initialAppointments }: AppointmentsViewProps)
 
   return (
     <div className="space-y-6">
-      {/* Status Filter Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-        <button
-          onClick={() => setFilter("all")}
-          className={`px-3 py-1.5 rounded-full font-medium transition-all ${
-            filter === "all"
-              ? "bg-primary text-primary-foreground font-semibold"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
-          }`}
+      {/* Status Filter Tabs & Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <button
+            onClick={() => setFilter("all")}
+            className={`px-3 py-1.5 rounded-full font-medium transition-all cursor-pointer ${
+              filter === "all"
+                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+            }`}
+          >
+            All ({initialAppointments.length})
+          </button>
+          {Object.entries(STATUS_CONFIG).map(([key, config]) => {
+            const count = initialAppointments.filter((a) => a.status === key).length;
+            return (
+              <button
+                key={key}
+                onClick={() => setFilter(key as AppointmentStatus)}
+                className={`px-3 py-1.5 rounded-full font-medium transition-all cursor-pointer ${
+                  filter === key
+                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                }`}
+              >
+                {config.label} ({count})
+              </button>
+            );
+          })}
+        </div>
+
+        <Button
+          size="sm"
+          className="h-8 gap-1.5 text-xs shadow-xs self-start sm:self-auto whitespace-nowrap"
+          onClick={() => setNewApptOpen(true)}
         >
-          All ({initialAppointments.length})
-        </button>
-        {Object.entries(STATUS_CONFIG).map(([key, config]) => {
-          const count = initialAppointments.filter((a) => a.status === key).length;
-          return (
-            <button
-              key={key}
-              onClick={() => setFilter(key as AppointmentStatus)}
-              className={`px-3 py-1.5 rounded-full font-medium transition-all ${
-                filter === key
-                  ? "bg-primary text-primary-foreground font-semibold"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {config.label} ({count})
-            </button>
-          );
-        })}
+          <Plus className="h-3.5 w-3.5" />
+          <span>Book Appointment</span>
+        </Button>
       </div>
 
       {/* Appointment Cards */}
       {filtered.length === 0 ? (
-        <div className="py-16 text-center text-muted-foreground text-sm border rounded-xl bg-card">
+        <div className="py-16 text-center text-muted-foreground text-sm border border-border/60 rounded-xl bg-card">
           <Calendar className="h-8 w-8 mx-auto mb-2 opacity-40" />
-          <p className="font-medium text-foreground">No appointments found in this status.</p>
-          <p className="text-xs mt-1">Book appointments from any patient enquiry profile.</p>
+          <p className="font-semibold text-foreground">No appointments found in this status.</p>
+          <p className="text-xs mt-1">Book an appointment for any patient enquiry or schedule a new visitor.</p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-3 text-xs gap-1.5"
+            onClick={() => setNewApptOpen(true)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Book New Appointment
+          </Button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -214,6 +238,14 @@ export function AppointmentsView({ initialAppointments }: AppointmentsViewProps)
           })}
         </div>
       )}
+
+      {/* Book Appointment Dialog */}
+      <NewAppointmentDialog
+        leads={leadsList}
+        open={newApptOpen}
+        onOpenChange={setNewApptOpen}
+        onSuccess={() => router.refresh()}
+      />
     </div>
   );
 }

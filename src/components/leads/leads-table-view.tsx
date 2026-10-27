@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { exportLeadsCSV, deleteLead } from "@/app/actions/leads";
 import { WhatsAppDraftDialog } from "./whatsapp-draft-dialog";
+import { NewLeadDialog } from "./new-lead-dialog";
+import { NewAppointmentDialog } from "@/components/appointments/new-appointment-dialog";
+import { NewOpportunityDialog } from "@/components/treatments/new-opportunity-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +46,9 @@ import {
   Trash2,
   AlertTriangle,
   ArrowRight,
+  Calendar,
+  IndianRupee,
+  Plus,
 } from "lucide-react";
 import type { Lead, LeadStage, LeadSource, PaginatedResult, UserRole } from "@/lib/types";
 
@@ -82,6 +88,10 @@ export function LeadsTableView({
 
   // WhatsApp Dialog State
   const [whatsappLead, setWhatsappLead] = useState<{ id: string; name: string; phone: string } | null>(null);
+
+  // Appointment & Treatment Plan Modals for quick row action
+  const [appointmentLead, setAppointmentLead] = useState<{ id: string; name: string } | null>(null);
+  const [treatmentLead, setTreatmentLead] = useState<{ id: string; name: string } | null>(null);
 
   // Delete Dialog State (Owner/Admin only)
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
@@ -222,6 +232,16 @@ export function LeadsTableView({
             )}
             Export CSV
           </Button>
+
+          <NewLeadDialog
+            trigger={
+              <Button size="sm" className="h-9 gap-1.5 text-xs whitespace-nowrap shadow-xs">
+                <Plus className="h-3.5 w-3.5" />
+                New Enquiry
+              </Button>
+            }
+            onSuccess={() => router.refresh()}
+          />
         </div>
       </div>
 
@@ -261,10 +281,23 @@ export function LeadsTableView({
       {/* Table Card */}
       <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-xs">
         {initialData.data.length === 0 ? (
-          <div className="py-16 text-center text-muted-foreground text-sm">
-            <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
-            <p className="font-semibold text-foreground">No patient enquiries found.</p>
-            <p className="text-xs mt-1">Try adjusting your filters or search term.</p>
+          <div className="py-16 text-center text-muted-foreground text-sm space-y-3">
+            <Users className="h-8 w-8 mx-auto opacity-40" />
+            <div>
+              <p className="font-semibold text-foreground">No patient enquiries found.</p>
+              <p className="text-xs mt-0.5">Try adjusting your filters or record a new patient enquiry.</p>
+            </div>
+            <div>
+              <NewLeadDialog
+                trigger={
+                  <Button size="sm" className="gap-1.5 text-xs">
+                    <Plus className="h-3.5 w-3.5" />
+                    Record New Enquiry
+                  </Button>
+                }
+                onSuccess={() => router.refresh()}
+              />
+            </div>
           </div>
         ) : (
           <Table>
@@ -347,6 +380,32 @@ export function LeadsTableView({
                           title="WhatsApp Template"
                         >
                           <MessageSquare className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            setAppointmentLead({
+                              id: lead.id,
+                              name: lead.name,
+                            })
+                          }
+                          className="p-1.5 rounded-md text-blue-600 hover:text-blue-700 hover:bg-blue-500/10 transition-colors cursor-pointer"
+                          title="Book Clinic Appointment"
+                        >
+                          <Calendar className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            setTreatmentLead({
+                              id: lead.id,
+                              name: lead.name,
+                            })
+                          }
+                          className="p-1.5 rounded-md text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                          title="Propose Treatment Plan"
+                        >
+                          <IndianRupee className="h-4 w-4" />
                         </button>
 
                         <Link href={`/leads/${lead.id}`}>
@@ -470,6 +529,34 @@ export function LeadsTableView({
           leadPhone={whatsappLead.phone}
           open={!!whatsappLead}
           onOpenChange={(open) => !open && setWhatsappLead(null)}
+        />
+      )}
+
+      {/* Quick Book Appointment Dialog */}
+      {appointmentLead && (
+        <NewAppointmentDialog
+          leadId={appointmentLead.id}
+          leadName={appointmentLead.name}
+          open={!!appointmentLead}
+          onOpenChange={(open) => !open && setAppointmentLead(null)}
+          onSuccess={() => {
+            setAppointmentLead(null);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {/* Quick Propose Treatment Plan Dialog */}
+      {treatmentLead && (
+        <NewOpportunityDialog
+          leadId={treatmentLead.id}
+          leadName={treatmentLead.name}
+          open={!!treatmentLead}
+          onOpenChange={(open) => !open && setTreatmentLead(null)}
+          onSuccess={() => {
+            setTreatmentLead(null);
+            router.refresh();
+          }}
         />
       )}
     </div>

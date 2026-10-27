@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getDbClient } from "@/lib/supabase/server";
 import { getAuthenticatedClinic, assertActiveWorkspace } from "@/lib/auth-context";
 import {
   appointmentCreateSchema,
@@ -18,10 +18,11 @@ export async function getAppointments(params: {
 }) {
   const { clinic } = await getAuthenticatedClinic();
   const supabase = createClient();
+  const dbClient = getDbClient(supabase);
 
-  let query = supabase
+  let query = dbClient
     .from("appointments")
-    .select("id, clinic_id, lead_id, scheduled_at, duration_minutes, status, booking_source, notes, created_at, lead:leads(id, name, phone, stage, service_interest)")
+    .select("id, clinic_id, lead_id, scheduled_at, status, booking_source, outcome, rescheduled_from, created_at, updated_at, lead:leads(id, name, phone, stage, service_interest)")
     .eq("clinic_id", clinic.id);
 
   if (params.status && params.status !== "all") {
@@ -54,13 +55,14 @@ export async function createAppointment(input: AppointmentCreateInput) {
   }
 
   const supabase = createClient();
+  const dbClient = getDbClient(supabase);
 
   const parsed = appointmentCreateSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.errors[0]?.message || "Invalid appointment data" };
   }
 
-  const { data: appointment, error } = await supabase
+  const { data: appointment, error } = await dbClient
     .from("appointments")
     .insert({
       clinic_id: clinic.id,
@@ -73,47 +75,57 @@ export async function createAppointment(input: AppointmentCreateInput) {
     .single();
 
   if (error || !appointment) {
-    return { error: "Failed to create appointment." };
+    console.error("Create appointment error:", error?.message);
+    return { error: error?.message || "Failed to create appointment." };
   }
 
   // Update lead stage to appointment_booked
-  await supabase
+  await dbClient
     .from("leads")
     .update({
       stage: "appointment_booked",
       updated_at: new Date().toISOString(),
     })
-    .eq("id", parsed.data.lead_id);
+    .eq("id", parsed.data.lead_id)
+    .eq("clinic_id", clinic.id);
 
   // Log timeline event
-  await supabase.from("lead_events").insert({
-    clinic_id: clinic.id,
-    lead_id: parsed.data.lead_id,
-    event_type: "appointment_booked",
-    actor_id: user.id,
-    metadata: {
-      appointment_id: appointment.id,
-      scheduled_at: appointment.scheduled_at,
-    },
-  });
+  try {
+    await dbClient.from("lead_events").insert({
+      clinic_id: clinic.id,
+      lead_id: parsed.data.lead_id,
+      event_type: "appointment_booked",
+      actor_id: user.id,
+      metadata: {
+        appointment_id: appointment.id,
+        scheduled_at: appointment.scheduled_at,
+      },
+    });
 
-  // Schedule an appointment reminder task 24 hours prior to appointment
-  const scheduledTime = new Date(parsed.data.scheduled_at).getTime();
-  const reminderTime = new Date(Math.max(Date.now(), scheduledTime - 24 * 60 * 60 * 1000)).toISOString();
+    // Schedule an appointment reminder task 24 hours prior to appointment
+    const scheduledTime = new Date(parsed.data.scheduled_at).getTime();
+    const reminderTime = new Date(Math.max(Date.now(), scheduledTime - 24 * 60 * 60 * 1000)).toISOString();
 
-  await supabase.from("follow_up_tasks").insert({
-    clinic_id: clinic.id,
-    lead_id: parsed.data.lead_id,
-    assigned_to: user.id,
-    task_type: "appointment_reminder",
-    due_at: reminderTime,
-    status: "pending",
-    notes: `Confirm appointment scheduled for ${new Date(parsed.data.scheduled_at).toLocaleString("en-IN")}.`,
-  });
+    await dbClient.from("follow_up_tasks").insert({
+      clinic_id: clinic.id,
+      lead_id: parsed.data.lead_id,
+      assigned_to: user.id,
+      task_type: "appointment_reminder",
+      due_at: reminderTime,
+      status: "pending",
+      notes: `Confirm appointment scheduled for ${new Date(parsed.data.scheduled_at).toLocaleString("en-IN")}.`,
+    });
+  } catch (secErr) {
+    console.warn("Secondary appointment event logging error:", secErr);
+  }
 
   revalidatePath("/appointments");
   revalidatePath(`/leads/${parsed.data.lead_id}`);
+  revalidatePath("/leads");
   revalidatePath("/dashboard");
+  revalidatePath("/follow-ups");
+  revalidatePath("/treatments");
+  revalidatePath("/reports");
 
   return { success: true, appointment: appointment as Appointment };
 }
@@ -129,13 +141,14 @@ export async function updateAppointmentStatus(
   }
 
   const supabase = createClient();
+  const dbClient = getDbClient(supabase);
 
   const parsed = appointmentUpdateSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.errors[0]?.message || "Invalid status update" };
   }
 
-  const { data: currentAppointment, error: fetchErr } = await supabase
+  const { data: currentAppointment, error: fetchErr } = await dbClient
     .from("appointments")
     .select("*, lead:leads(*)")
     .eq("id", id)
@@ -157,10 +170,11 @@ export async function updateAppointmentStatus(
     updates.rescheduled_from = currentAppointment.scheduled_at;
   }
 
-  const { error: updateErr } = await supabase
+  const { error: updateErr } = await dbClient
     .from("appointments")
     .update(updates)
-    .eq("id", id);
+    .eq("id", id)
+    .eq("clinic_id", clinic.id);
 
   if (updateErr) {
     return { error: "Failed to update appointment status." };
@@ -168,31 +182,40 @@ export async function updateAppointmentStatus(
 
   // If attended, update lead stage to attended
   if (parsed.data.status === "attended") {
-    await supabase
+    await dbClient
       .from("leads")
       .update({
         stage: "attended",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", currentAppointment.lead_id);
+      .eq("id", currentAppointment.lead_id)
+      .eq("clinic_id", clinic.id);
   }
 
   // Record appointment outcome event in lead timeline
-  await supabase.from("lead_events").insert({
-    clinic_id: clinic.id,
-    lead_id: currentAppointment.lead_id,
-    event_type: "appointment_outcome",
-    actor_id: user.id,
-    metadata: {
-      appointment_id: id,
-      new_status: parsed.data.status,
-      outcome: parsed.data.outcome || null,
-    },
-  });
+  try {
+    await dbClient.from("lead_events").insert({
+      clinic_id: clinic.id,
+      lead_id: currentAppointment.lead_id,
+      event_type: "appointment_outcome",
+      actor_id: user.id,
+      metadata: {
+        appointment_id: id,
+        new_status: parsed.data.status,
+        outcome: parsed.data.outcome || null,
+      },
+    });
+  } catch (secErr) {
+    console.warn("Secondary event logging error:", secErr);
+  }
 
   revalidatePath("/appointments");
   revalidatePath(`/leads/${currentAppointment.lead_id}`);
+  revalidatePath("/leads");
   revalidatePath("/dashboard");
+  revalidatePath("/follow-ups");
+  revalidatePath("/treatments");
+  revalidatePath("/reports");
 
   return { success: true };
 }

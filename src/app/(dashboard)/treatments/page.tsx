@@ -1,9 +1,15 @@
 import { getTreatmentOpportunities } from "@/app/actions/treatments";
+import { getClinicLeadsList } from "@/app/actions/leads";
 import { TreatmentsView } from "@/components/treatments/treatments-view";
 import { Activity } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function TreatmentsPage() {
-  const opportunities = await getTreatmentOpportunities({});
+  const [opportunities, clinicLeads] = await Promise.all([
+    getTreatmentOpportunities({}),
+    getClinicLeadsList(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -22,7 +28,10 @@ export default async function TreatmentsPage() {
         </p>
       </div>
 
-      <TreatmentsView initialOpportunities={opportunities} />
+      <TreatmentsView
+        initialOpportunities={opportunities}
+        leadsList={clinicLeads}
+      />
     </div>
   );
 }

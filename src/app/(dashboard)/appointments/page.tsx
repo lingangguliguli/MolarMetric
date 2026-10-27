@@ -1,9 +1,15 @@
 import { getAppointments } from "@/app/actions/appointments";
+import { getClinicLeadsList } from "@/app/actions/leads";
 import { AppointmentsView } from "@/components/appointments/appointments-view";
 import { Calendar } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function AppointmentsPage() {
-  const appointments = await getAppointments({});
+  const [appointments, clinicLeads] = await Promise.all([
+    getAppointments({}),
+    getClinicLeadsList(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -22,7 +28,10 @@ export default async function AppointmentsPage() {
         </p>
       </div>
 
-      <AppointmentsView initialAppointments={appointments} />
+      <AppointmentsView
+        initialAppointments={appointments}
+        leadsList={clinicLeads}
+      />
     </div>
   );
 }

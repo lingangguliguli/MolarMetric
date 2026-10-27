@@ -56,3 +56,21 @@ export function createServiceClient() {
     }
   );
 }
+
+/**
+ * Returns a service role client if configured, otherwise falls back to the user's supabase client.
+ */
+export function getDbClient(supabaseClient?: any) {
+  if (
+    process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    process.env.SUPABASE_SERVICE_ROLE_KEY !== "your-service-role-key-here"
+  ) {
+    try {
+      return createServiceClient();
+    } catch {
+      return supabaseClient || createClient();
+    }
+  }
+  return supabaseClient || createClient();
+}
+

@@ -1,25 +1,11 @@
 "use server";
 
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient, getDbClient } from "@/lib/supabase/server";
 import { getAuthenticatedClinic, assertActiveWorkspace, assertRole } from "@/lib/auth-context";
 import { leadCreateSchema, leadUpdateSchema, type LeadCreateInput, type LeadUpdateInput } from "@/lib/validations";
 import { normalizePhoneNumber, sanitizeCsvValue } from "@/lib/utils";
 import type { Lead, LeadStage, LeadSource, PaginatedResult } from "@/lib/types";
 import { revalidatePath } from "next/cache";
-
-function getDbClient(supabaseClient: any) {
-  if (
-    process.env.SUPABASE_SERVICE_ROLE_KEY &&
-    process.env.SUPABASE_SERVICE_ROLE_KEY !== "your-service-role-key-here"
-  ) {
-    try {
-      return createServiceClient();
-    } catch {
-      return supabaseClient;
-    }
-  }
-  return supabaseClient;
-}
 
 export interface GetLeadsParams {
   stage?: LeadStage | "all";
@@ -44,9 +30,9 @@ export async function getLeads(params: GetLeadsParams = {}): Promise<PaginatedRe
 
   let query = dbClient
     .from("leads")
-    .select("id, clinic_id, name, phone, email, stage, source, service_interest, estimated_value, assigned_to, first_contact_at, created_at, updated_at", { count: "exact" })
+    .select("id, clinic_id, name, phone, email, stage, source, service_interest, assigned_to, first_contact_at, consent_whatsapp, consent_sms, consent_email, opted_out, lost_reason, archived, created_at, updated_at", { count: "exact" })
     .eq("clinic_id", clinic.id)
-    .eq("archived", false);
+    .or("archived.eq.false,archived.is.null");
 
   if (params.stage && params.stage !== "all") {
     query = query.eq("stage", params.stage);
@@ -86,6 +72,38 @@ export async function getLeads(params: GetLeadsParams = {}): Promise<PaginatedRe
   };
 }
 
+/**
+ * Returns a quick list of all active clinic patient inquiries for dropdowns / selection
+ */
+export async function getClinicLeadsList(): Promise<Array<{ id: string; name: string; phone: string; service_interest?: string | null; stage: LeadStage }>> {
+  try {
+    const { clinic } = await getAuthenticatedClinic();
+    const supabase = createClient();
+    const dbClient = getDbClient(supabase);
+
+    const { data, error } = await dbClient
+      .from("leads")
+      .select("id, name, phone, service_interest, stage")
+      .eq("clinic_id", clinic.id)
+      .or("archived.eq.false,archived.is.null")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error) {
+      console.error("Error fetching clinic leads list:", error.message);
+      return [];
+    }
+
+    return (data as Array<{ id: string; name: string; phone: string; service_interest?: string | null; stage: LeadStage }>) || [];
+  } catch (err: any) {
+    if (err?.digest === "DYNAMIC_SERVER_USAGE" || err?.message?.includes("Dynamic server usage")) {
+      throw err;
+    }
+    console.error("Failed to load clinic leads list:", err);
+    return [];
+  }
+}
+
 export async function getLeadById(id: string) {
   const { clinic } = await getAuthenticatedClinic();
   const supabase = createClient();
@@ -116,13 +134,13 @@ export async function getLeadById(id: string) {
       .eq("lead_id", id)
       .order("due_at", { ascending: true })
       .limit(100),
-    supabase
+    dbClient
       .from("appointments")
       .select("*")
       .eq("lead_id", id)
       .order("scheduled_at", { ascending: false })
       .limit(50),
-    supabase
+    dbClient
       .from("treatment_opportunities")
       .select("*")
       .eq("lead_id", id)
@@ -207,6 +225,7 @@ export async function createLead(input: LeadCreateInput) {
       consent_whatsapp: parsed.data.consent_whatsapp ?? true,
       consent_sms: parsed.data.consent_sms ?? false,
       consent_email: parsed.data.consent_email ?? false,
+      archived: false,
     };
 
     const { error: insertError } = await dbClient
@@ -250,6 +269,9 @@ export async function createLead(input: LeadCreateInput) {
       revalidatePath("/leads");
       revalidatePath("/dashboard");
       revalidatePath("/follow-ups");
+      revalidatePath("/appointments");
+      revalidatePath("/treatments");
+      revalidatePath("/reports");
     } catch (revErr) {
       console.warn("Revalidation warning:", revErr);
     }

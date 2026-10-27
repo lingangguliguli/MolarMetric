@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createLead } from "@/app/actions/leads";
 import {
   Dialog,
@@ -29,6 +30,7 @@ interface NewLeadDialogProps {
 }
 
 export function NewLeadDialog({ trigger, onSuccess }: NewLeadDialogProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export function NewLeadDialog({ trigger, onSuccess }: NewLeadDialogProps) {
         setPhone("");
         setEmail("");
         setServiceInterest("");
+        router.refresh();
         if (onSuccess) {
           try {
             onSuccess();

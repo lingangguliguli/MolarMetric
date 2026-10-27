@@ -131,7 +131,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1: Total Enquiries */}
         <Link
-          href={recentLeads.length === 1 ? `/leads/${recentLeads[0].id}` : "/leads"}
+          href="/leads"
           className="group block focus:outline-none"
         >
           <Card className="border-border/60 group-hover:border-primary/60 transition-all duration-200 group-hover:shadow-md cursor-pointer h-full">
